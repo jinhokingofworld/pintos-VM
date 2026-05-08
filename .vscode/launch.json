@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "[Week 9]Threads Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "/workspaces/pintos_threads_lab/pintos/threads/build/kernel.o",
+      "cwd": "/workspaces/pintos_threads_lab/pintos/threads",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:1234",
+    },
+    {
+      "name": "[Week 10-11]User Program Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "/workspaces/pintos_threads_lab/pintos/userprog/build/kernel.o",
+      "cwd": "/workspaces/pintos_threads_lab/pintos/userprog",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:1234",
+    },
+    {
+      "name": "[Week 12-13]VM Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "/workspaces/pintos_threads_lab/pintos/vm/build/kernel.o",
+      "cwd": "/workspaces/pintos_threads_lab/pintos/vm",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:1234"
+    },
+  ]
+}

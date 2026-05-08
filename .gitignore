@@ -1,0 +1,39 @@
+# Pintos 빌드 중간 파일 및 산출물
+*.o
+*.d
+*.out
+*.bin
+*.elf
+*.img
+*.map
+*.lst
+*.log
+*.qemu
+*.raw
+*.hex
+*.dis
+*.dump
+
+
+# 빌드 디렉터리
+**/build/
+**/bin/
+**/obj/
+**/output/
+# core dump
+core
+
+# 임시 파일
+*~
+*.swp
+
+# macOS
+.DS_Store
+
+**/.test_status
+
+# 개인 문서 및 로컬 테스트 히스토리
+pintos/docs/
+pintos/.vscode/pintos-test-history.json
+# 공통 에이전트 파일
+*.md

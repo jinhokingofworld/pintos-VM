@@ -1,0 +1,48 @@
+# Default: normalize text files to LF across all platforms.
+* text=auto eol=lf
+
+# Source / headers / assembly / linker-related files
+*.c text eol=lf
+*.h text eol=lf
+*.S text eol=lf
+*.s text eol=lf
+*.ld text eol=lf
+*.lds text eol=lf
+*.lds.S text eol=lf
+
+# Build / config / docs / scripts
+*.mk text eol=lf
+Makefile text eol=lf
+Makefile.* text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.pl text eol=lf
+*.pm text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.in text eol=lf
+
+# Extensionless text/executable files used in this repo
+activate text eol=lf
+pintos/utils/pintos text eol=lf
+pintos/utils/pintos-mkdisk text eol=lf
+pintos/tests/make-grade text eol=lf
+
+# Keep binary/generated artifacts untouched
+*.o -text
+*.a -text
+*.so -text
+*.bin -text
+*.dsk -text
+*.gz -text
+*.zip -text
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.pdf -text
