@@ -245,8 +245,9 @@ __do_fork (void *aux) {
 	struct child_info *child_info = fork_info->child_info;	//이번 자식의 상태 기록표
 	struct thread *parent = child_info->parent;				//부모 thread
 	struct intr_frame if_;
+	struct thread* current = thread_current();
 
-	thread_current() -> child_info = child_info;
+	current -> child_info = child_info;
 
 	// 부모의 유저 실행 상태 복사
 	// rip  = fork syscall이 끝난 뒤 돌아갈 유저 코드 위치
@@ -260,14 +261,14 @@ __do_fork (void *aux) {
 
 	// 현재 실행 중인 자식 thread의 pml4 필드에
 	// 새로 만든 pml4를 넣는다
-	thread_current() -> pml4 = pml4_create();
-	if (thread_current() -> pml4 == NULL){
+	current -> pml4 = pml4_create();
+	if (current -> pml4 == NULL){
 		goto error;
 	}
 
 	// 이후 자식 pml4에 페이지를 매핑할 수 있도록
 	// CPU의 주소 변환 기준을 자식 pml4로 바꾼다.
-	process_activate (thread_current());
+	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
