@@ -174,14 +174,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt) {
-	spt->hash_table.elem_cnt = 0;
-	spt->hash_table.bucket_cnt = 1<<3;
-	
-	// buckets는 어떻게 초기화하는게 좋을까?
-	spt->hash_table.buckets = NULL; 
-	spt->hash_table.hash = NULL;
-	spt->hash_table.less = NULL;
-	spt->hash_table.aux = NULL;
+	hash_init(&spt->hash_table, spt->hash_table.hash, spt->hash_table.less, spt->hash_table.aux);
 }
 
 /* Copy supplemental page table from src to dst */
