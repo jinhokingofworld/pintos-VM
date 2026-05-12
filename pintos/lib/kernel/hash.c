@@ -8,6 +8,7 @@
 #include "hash.h"
 #include "../debug.h"
 #include "threads/malloc.h"
+#include "vm/vm.h"
 
 #define list_elem_to_hash_elem(LIST_ELEM)                       \
 	list_entry(LIST_ELEM, struct hash_elem, list_elem)
@@ -392,3 +393,14 @@ remove_elem (struct hash *h, struct hash_elem *e) {
 	list_remove (&e->list_elem);
 }
 
+uint64_t h_func(const struct hash_elem *e, void *aux) {
+	struct page *p = hash_entry(e, struct page, elem);
+	return hash_int (p->va);
+}
+
+bool l_func(const struct hash_elem *a, const struct hash_elem *b,
+		void *aux) {
+	struct page *p1 = hash_entry(a, struct page, elem);
+	struct page *p2 = hash_entry(b, struct page, elem);
+	return hash_int(p1->va) < hash_int(p2->va) ? true: false;
+}
