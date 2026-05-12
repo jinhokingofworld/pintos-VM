@@ -11,6 +11,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include <hash.h>
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -453,6 +454,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init (&t->children);
 	sema_init (&t->child_wait_sema, 0);
 	t->child_info = NULL;
+#endif
+#ifdef VM
+	hash_init(&t->spt, h_func, l_func, NULL);
 #endif
 }
 
