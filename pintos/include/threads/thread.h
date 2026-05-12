@@ -7,6 +7,8 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "filesys/file.h"
+
+#define VM;
 #ifdef VM
 #include "vm/vm.h"
 #endif

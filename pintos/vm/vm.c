@@ -47,18 +47,18 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
-
+	
 	/* Check wheter the upage is already occupied or not. */
+	//현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
 	if (spt_find_page (spt, upage) == NULL) {
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
 		/* TODO: Insert the page into the spt. */
 		
-		//현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
-
-		//unint_new();
-		// spt_insert_page();
+		struct page *newpage = malloc(sizeof(struct page));
+		unint_new(newpage, upage, NULL, VM_UNINIT, aux);
+		spt_insert_page(spt, newpage);
 	}
 
 	
@@ -82,11 +82,12 @@ spt_find_page (struct supplemental_page_table *spt, void *va) {
 
 /* Insert PAGE into spt with validation. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
+spt_insert_page (struct supplemental_page_table *spt,
+		struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
-
+	//spt에 넣는 함수
+	
 	return succ;
 }
 
