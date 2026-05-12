@@ -18,6 +18,8 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#define VM;
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -875,7 +877,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		struct spt_aux temp;
+		temp.flie = file;					// 어떤 파일
+		temp.offset = ofs; 					// 파일에서 읽기 시작할 위치
+		temp.page_read_bytes = read_bytes;	// 데이터 양
+		temp.page_zero_bytes = zero_bytes;	// 패딩 양
+		temp.va = upage;					//가상주소 어디에 쓸지
+
+		void *aux = malloc(sizeof(struct spt_aux));
+		memset(aux, &temp, sizeof(struct spt_aux));
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
