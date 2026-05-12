@@ -54,6 +54,9 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
 		/* TODO: Insert the page into the spt. */
+		
+		//현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
+
 		//unint_new();
 		// spt_insert_page();
 	}
