@@ -869,17 +869,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
 
+	off_t offset = ofs;
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+		offset += page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct spt_aux temp;
-		temp.flie = file;					// 어떤 파일
-		temp.offset = ofs; 					// 파일에서 읽기 시작할 위치
+		temp.flie = file;					// 어떤 파일에서 읽을지
+		temp.offset = offset; 				// 파일에서 읽기 시작할 위치
 		temp.page_read_bytes = read_bytes;	// 데이터 양
 		temp.page_zero_bytes = zero_bytes;	// 패딩 양
 		temp.va = upage;					//가상주소 어디에 쓸지
