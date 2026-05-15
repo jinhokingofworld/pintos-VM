@@ -60,11 +60,16 @@ err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* SPT에서 VA에 해당하는 page를 찾아 반환한다.
+ * 찾지 못하면 NULL을 반환한다. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
-	/* TODO: Fill this function. */
+	/* TODO: va를 페이지 시작 주소로 내림 정렬한다. */
+
+	/* TODO: 임시 page를 만들어 va를 넣고, hash_find로 같은 va의 page를 찾는다. */
+
+	/* TODO: 찾은 hash_elem이 있으면 hash_entry로 struct page를 얻어 반환한다. */
 
 	return page;
 }
@@ -171,9 +176,25 @@ vm_do_claim_page (struct page *page) {
 	return swap_in (page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
+/* page의 가상 주소(va)를 기준으로 해시값을 계산한다. */
+uint64_t hash_page (const struct hash_elem *e, void *aux) {
+    struct page *page = hash_entry(e, struct page, hash_elem);
+
+    return hash_bytes(&page->va, sizeof(page->va));
+}
+
+/* 두 page를 가상 주소(va) 기준으로 비교한다. */
+bool hash_less (const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+    struct page *page_a = hash_entry(a, struct page, hash_elem);
+    struct page *page_b = hash_entry(b, struct page, hash_elem);
+
+    return page_a->va < page_b->va;
+}
+
+/* 새 프로세스의 SPT를 초기화한다. */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+    hash_init (&spt->pages, hash_page, hash_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */

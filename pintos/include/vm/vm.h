@@ -36,19 +36,20 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
-/* The representation of "page".
- * This is kind of "parent class", which has four "child class"es, which are
- * uninit_page, file_page, anon_page, and page cache (project4).
+/* 사용자 가상 페이지 하나를 표현하는 구조체.
+ * uninit, anon, file 등 페이지 종류별 정보를 함께 관리한다.
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
 struct page {
-	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	const struct page_operations *operations; /* 페이지 종류별 동작 함수. */
+	void *va;              /* 사용자 가상 주소. */
+	struct frame *frame;   /* 연결된 물리 프레임. */
 
-	/* Your implementation */
+	/* TODO: SPT 관리와 페이지 권한에 필요한 필드. */
+    struct thread *owner; /* 이 페이지가 속한 주소 공간의 스레드. */
+    struct hash_elem hash_elem; /* SPT 해시 연결 고리. */
+    bool writable;              /* 쓰기 가능 여부. */
 
-	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
+	/* 페이지 타입별 세부 정보. */
 	union {
 		struct uninit_page uninit;
 		struct anon_page anon;
@@ -81,10 +82,10 @@ struct page_operations {
 #define destroy(page) \
 	if ((page)->operations->destroy) (page)->operations->destroy (page)
 
-/* Representation of current process's memory space.
- * We don't want to force you to obey any specific design for this struct.
- * All designs up to you for this. */
+/* 프로세스별 사용자 가상 페이지 관리 테이블.
+ * 페이지 폴트 시 필요한 page 정보를 찾는 데 사용한다. */
 struct supplemental_page_table {
+	struct hash pages;	/* 가상 주소를 기준으로 struct page 항목을 저장한다. */
 };
 
 #include "threads/thread.h"
