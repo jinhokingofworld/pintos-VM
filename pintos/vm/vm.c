@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "threads/vaddr.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -76,6 +77,25 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function. */
+	
+	// spt가 없는 경우라면, 초기화가 안된것이므로 진행되면 안된다.
+	if (spt == NULL) {
+		thread_exit();
+	}
+
+	// va가 NULL인 경우
+	if (va == NULL) {
+		return page;
+	}
+
+	struct page key;
+	key.va = pg_round_down(va); // 호출되는곳에 대한 정보가 없어, 여기서 va가 페이지의 시작 주소임을 보장해주어야한다고 판단.
+
+	// key.va 값을 갖는 페이지를 불러오기
+	struct hash_elem *hash_e = hash_find(&spt->hash_table, &key.elem);
+	if (hash_e != NULL) {
+		page = hash_entry(hash_e, struct page, elem);
+	}
 
 	return page;
 }
