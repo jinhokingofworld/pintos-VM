@@ -327,6 +327,9 @@ process_exec (void *f_name) {
 
 	/* 기존 실행 문맥 정리. */
 	process_cleanup ();
+	#ifdef VM
+		supplemental_page_table_init (&thread_current ()->spt);
+	#endif
 
 	/* 실행 파일 로드. */
 	success = load (file_name, &_if);
