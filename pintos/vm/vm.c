@@ -73,12 +73,12 @@ err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* SPT에서 VA에 해당하는 page를 찾아 반환한다.
+ * 찾지 못하면 NULL을 반환한다. */
 struct page *
-spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
+spt_find_page (struct supplemental_page_table *spt, void *va) {
 	struct page *page = NULL;
-	/* TODO: Fill this function. */
-	
+
 	ASSERT (spt != NULL); // spt는 적어도 존재해야 함
 
 	// va가 NULL이거나 커널 영역을 가리키는 경우
@@ -211,18 +211,28 @@ vm_do_claim_page (struct page *page) {
 	return swap_in (page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
+/* page의 가상 주소(va)를 기준으로 해시값을 계산한다. */
+uint64_t hash_page (const struct hash_elem *e, void *aux) {
+    struct page *page = hash_entry(e, struct page, hash_elem);
+
+    return hash_bytes(&page->va, sizeof(page->va));
+}
+
+/* 두 page를 가상 주소(va) 기준으로 비교한다. */
+bool hash_less (const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+    struct page *page_a = hash_entry(a, struct page, hash_elem);
+    struct page *page_b = hash_entry(b, struct page, hash_elem);
+
+    return page_a->va < page_b->va;
+}
+
+/* 새 프로세스의 SPT를 초기화한다. */
 bool
-supplemental_page_table_init (struct supplemental_page_table *spt) {	
-	
-	// 엣지 케이스 처리
-	ASSERT (spt != NULL);
-	
-	// spt 초기화 실패시, 프로세스 종료
-	if (!hash_init(&spt->hash_table, spt->hash_table.hash, spt->hash_table.less, spt->hash_table.aux)) {
-		return false;
-	}
-	return true;
+supplemental_page_table_init (struct supplemental_page_table *spt) {
+    if (!hash_init (&spt->hash_table, hash_page, hash_less, NULL)) {
+        return false;
+    }
+    return true;
 }
 
 /* Copy supplemental page table from src to dst */
