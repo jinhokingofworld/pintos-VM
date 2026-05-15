@@ -78,8 +78,9 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
-		if (spt_insert_page (spt, page))
+		if (spt_insert_page (spt, page)) {
 			return true;
+		}
 
 		free (page);
 	}
@@ -105,12 +106,23 @@ spt_find_page (struct supplemental_page_table *spt, void *va) {
 
 /* Insert PAGE into spt with validation. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
-	int succ = false;
+spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
 	/* TODO: Fill this function. */
+	page->va = pg_round_down (page->va);
 
-	return succ;
+	if (!is_user_vaddr (page->va)) {
+		return false;
+	}
+
+	if (spt_find_page (spt, page->va) != NULL) {
+		return false;
+	}
+
+	if (hash_insert (&spt->hash_table, &page->hash_elem) != NULL) {
+		return false;
+	}
+
+	return true;
 }
 
 void
