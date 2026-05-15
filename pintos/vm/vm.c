@@ -104,10 +104,15 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
+	
+	/* 어디서 호출될지 모르므로 최대한 많이 작성 */
+	ASSERT (spt != NULL); // spt는 NULL이면 안돼
+	ASSERT (page != NULL); // page는 정상적으로 생성되어야 해
+	ASSERT (is_user_vaddr(page->va)); // va는 유저 영역을 가리켜야 해
+	ASSERT (pg_ofs(page->va) == 0); // 페이지 단위로 정렬되어 있어야 해 (페이지 시작 주소)
+			
 	int succ = false;
-	
-	// TBD: 엣지 케이스 처리
-	
+
 	/* 중복되는 페이지가 없었다면, 성공*/
 	if (hash_insert(&spt->hash_table, &page->elem) == NULL) {
 		succ = true;
