@@ -19,19 +19,23 @@ static void insert_elem (struct hash *, struct list *, struct hash_elem *);
 static void remove_elem (struct hash *, struct hash_elem *);
 static void rehash (struct hash *);
 
-/* Initializes hash table H to compute hash values using HASH and
-   compare hash elements using LESS, given auxiliary data AUX. */
+/* 해시 테이블 H를 초기화한다.
+   HASH로 해시값을 계산하고 LESS로 원소를 비교하며, AUX는 두 함수에 함께 전달된다. */
 bool
 hash_init (struct hash *h,
 		hash_hash_func *hash, hash_less_func *less, void *aux) {
+	/* 빈 테이블을 만들고 기본 버킷 4개를 준비한다. */
 	h->elem_cnt = 0;
 	h->bucket_cnt = 4;
 	h->buckets = malloc (sizeof *h->buckets * h->bucket_cnt);
+
+	/* 이후 탐색/삽입에서 사용할 콜백과 보조 데이터를 저장한다. */
 	h->hash = hash;
 	h->less = less;
 	h->aux = aux;
 
 	if (h->buckets != NULL) {
+		/* 할당된 각 버킷 리스트를 빈 상태로 초기화한다. */
 		hash_clear (h, NULL);
 		return true;
 	} else
@@ -117,10 +121,11 @@ hash_replace (struct hash *h, struct hash_elem *new) {
 	return old;
 }
 
-/* Finds and returns an element equal to E in hash table H, or a
-   null pointer if no equal element exists in the table. */
+/* 해시 테이블 H에서 E와 같은 원소를 찾아 반환한다.
+   같은 원소가 없으면 NULL을 반환한다. */
 struct hash_elem *
 hash_find (struct hash *h, struct hash_elem *e) {
+	/* E의 해시값으로 검사할 버킷을 고른 뒤, 그 버킷 안에서 같은 원소를 찾는다. */
 	return find_elem (h, find_bucket (h, e), e);
 }
 
@@ -235,14 +240,14 @@ hash_empty (struct hash *h) {
 	return h->elem_cnt == 0;
 }
 
-/* Fowler-Noll-Vo hash constants, for 32-bit word sizes. */
+/* Fowler-Noll-Vo 해시 상수. */
 #define FNV_64_PRIME 0x00000100000001B3UL
 #define FNV_64_BASIS 0xcbf29ce484222325UL
 
-/* Returns a hash of the SIZE bytes in BUF. */
+/* BUF에서 시작하는 SIZE 바이트 데이터를 순서대로 읽어 해시값을 계산한다. */
 uint64_t
-hash_bytes (const void *buf_, size_t size) {
-	/* Fowler-Noll-Vo 32-bit hash, for bytes. */
+hash_bytes (const void *buf_, size_t size) { // buf_ : 해시를 계산할 원본 데이터 버퍼의 시작 주소
+	/* 바이트 단위로 FNV-1 계열 64비트 해시를 누적한다. */
 	const unsigned char *buf = buf_;
 	uint64_t hash;
 
@@ -391,4 +396,3 @@ remove_elem (struct hash *h, struct hash_elem *e) {
 	h->elem_cnt--;
 	list_remove (&e->list_elem);
 }
-
