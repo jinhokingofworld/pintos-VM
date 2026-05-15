@@ -79,13 +79,10 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function. */
 	
-	// spt가 없는 경우라면, 초기화가 안된것이므로 진행되면 안된다.
-	if (spt == NULL) {
-		thread_exit();
-	}
+	ASSERT (spt != NULL); // spt는 적어도 존재해야 함
 
-	// va가 NULL인 경우
-	if (va == NULL) {
+	// va가 NULL이거나 커널 영역을 가리키는 경우
+	if (va == NULL || is_kernel_vaddr(va)) {
 		return page;
 	}
 
