@@ -76,6 +76,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		uninit_new (page, pg_round_down (upage), init, type, aux, initializer);
 
 		page->writable = writable;
+		page->owner = thread_current ();
+		page->dirty = false;
 
 		/* TODO: Insert the page into the spt. */
 		if (spt_insert_page (spt, page)) {

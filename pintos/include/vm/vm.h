@@ -49,8 +49,8 @@ struct page {
 	/* Your implementation */
 	struct hash_elem hash_elem;
 	bool writable;
-	// owner 추가
-	// dirty bit 구분 인자 추가
+	struct thread *owner;
+	bool dirty;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -68,7 +68,7 @@ struct page {
 struct frame {
 	void *kva;
 	struct page *page;
-	// 리스트 인자 추가
+	struct list_elem frame_elem;
 };
 
 /* The function table for page operations.
