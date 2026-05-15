@@ -1,6 +1,8 @@
 /* vm.c: Generic interface for virtual memory objects. */
 
 #include "threads/malloc.h"
+#include "threads/mmu.h"
+#include "threads/vaddr.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
@@ -36,6 +38,9 @@ page_get_type (struct page *page) {
 static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
+static uint64_t page_hash (const struct hash_elem *e, void *aux UNUSED);
+static bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+static void page_destroy (struct hash_elem *e, void *aux UNUSED);
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -47,14 +52,36 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
+	bool (*initializer) (struct page *, enum vm_type, void *) = NULL;
+	struct page *page;
 
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) == NULL) {
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
+		switch (VM_TYPE (type)) {
+			case VM_ANON:
+				initializer = anon_initializer;
+				break;
+			case VM_FILE:
+				initializer = file_backed_initializer;
+				break;
+		}
+
+		page = malloc (sizeof *page);
+		if (page == NULL) {
+			goto err;
+		}
+		uninit_new (page, pg_round_down (upage), init, type, aux, initializer);
+
+		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
+		if (spt_insert_page (spt, page))
+			return true;
+
+		free (page);
 	}
 err:
 	return false;
@@ -81,8 +108,8 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+	hash_delete (&spt->hash_table, &page->hash_elem);
 	vm_dealloc_page (page);
-	return true;
 }
 
 /* Get the struct frame, that will be evicted. */
@@ -173,7 +200,8 @@ vm_do_claim_page (struct page *page) {
 
 /* Initialize new supplemental page table */
 void
-supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_init (struct supplemental_page_table *spt) {
+	hash_init (&spt->hash_table, page_hash, page_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
@@ -184,7 +212,31 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 
 /* Free the resource hold by the supplemental page table */
 void
-supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_kill (struct supplemental_page_table *spt) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	hash_destroy (&spt->hash_table, page_destroy);
+}
+
+static uint64_t
+page_hash (const struct hash_elem *e, void *aux UNUSED) {
+	const struct page *page = hash_entry (e, struct page, hash_elem);
+
+	return hash_bytes (&page->va, sizeof page->va);
+}
+
+static bool
+page_less (const struct hash_elem *a, const struct hash_elem *b,
+		void *aux UNUSED) {
+	const struct page *page_a = hash_entry (a, struct page, hash_elem);
+	const struct page *page_b = hash_entry (b, struct page, hash_elem);
+
+	return page_a->va < page_b->va;
+}
+
+static void
+page_destroy (struct hash_elem *e, void *aux UNUSED) {
+	struct page *page = hash_entry (e, struct page, hash_elem);
+
+	vm_dealloc_page (page);
 }
