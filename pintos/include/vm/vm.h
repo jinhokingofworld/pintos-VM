@@ -52,7 +52,6 @@ struct page
 	struct thread *owner;
 	struct hash_elem elem;
 	bool writable;
-	bool dirtybit;
 	bool accessedbit;
 	// swap에 있는지 없는지도 알아야 할 것
 

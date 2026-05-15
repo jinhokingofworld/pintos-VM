@@ -137,12 +137,17 @@ static struct frame *
 vm_get_frame(void)
 { /* TODO: Fill this function. */
 	struct frame *frame = malloc(sizeof(frame));
+
+	// palloc으로 프레임을 가져오는 것을 시도
 	frame->kva = palloc_get_page(PAL_USER);
 	frame->page = NULL;
-	/*
-		page allocation이 실패했을 때 swap out을 처리할 필요가 없다.
-		TODO: `PANIC("todo")` 처리하기
-	*/
+
+	// palloc이 실패했다 == 메모리가 꽉 찼다 == swap out 필요
+	if (frame->kva == NULL)
+	{
+		// 메모리 swap out 이후에 구현
+		PANIC("todo");
+	}
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
 	return frame;
@@ -226,13 +231,16 @@ static bool
 vm_do_claim_page(struct page *page)
 {
 	struct frame *frame = vm_get_frame();
+	struct thread *curr = thread_current();
 
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	pml4_set_page(curr->pml4, page->va, frame->kva, page->writable);
 
+	// 매크로 함수였어
 	return swap_in(page, frame->kva);
 }
 
