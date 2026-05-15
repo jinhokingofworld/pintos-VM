@@ -37,3 +37,6 @@ pintos/docs/
 pintos/.vscode/pintos-test-history.json
 # 공통 에이전트 파일
 *.md
+
+# vscode
+.vscode
