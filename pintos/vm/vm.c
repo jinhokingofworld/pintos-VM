@@ -46,15 +46,17 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
+	// upage, init, aux가 null일때는 검사하지 않는건가? 어떻게 믿고 사용하는거지?
+
 	struct supplemental_page_table *spt = &thread_current ()->spt;
-	struct page* page;
+	struct page *page;
 
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) == NULL) {
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
-		if (page = malloc(4096) == NULL) { // PAGE_SIZE 같은 상수로 추후에 대체하면 좋겠다.
+		if (page = malloc(sizeof(*page)) == NULL) {
 			goto err;
 		}
 
