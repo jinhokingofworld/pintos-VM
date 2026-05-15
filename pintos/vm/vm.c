@@ -61,13 +61,14 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 			goto err;
 		}
 
-		uninit_new(page, upage, init, type, aux, NULL); // page_initializer 현재로는 알 수 없음
+		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
 
 		/* TODO: Insert the page into the spt. */
 		if (!spt_insert_page(spt, page)) {
 			goto err;
 		}
 	}
+	return true;
 err:
 	return false;
 }
