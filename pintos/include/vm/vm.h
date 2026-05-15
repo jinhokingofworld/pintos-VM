@@ -54,10 +54,11 @@ struct page
 	bool writable;
 	bool dirtybit;
 	bool accessedbit;
+	// swap에 있는지 없는지도 알아야 할 것
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
-	union
+	union // 이거를 모르고서는 아무것도 할 수 없음
 	{
 		struct uninit_page uninit;
 		struct anon_page anon;
@@ -104,11 +105,14 @@ struct supplemental_page_table
 
 struct aux
 {
-	struct file *flie;		// 파일
+	struct file *file;		// 파일
 	off_t offset;			// 파일의 어디부터 읽어야 할 지
 	size_t page_read_bytes; // 몇 바이트 데이터
 	size_t page_zero_bytes; // 몇 바이트 패딩
 };
+
+// kernel이 전역으로 사용하는 테이블
+struct list frame_table;
 
 #include "threads/thread.h"
 void supplemental_page_table_init(struct supplemental_page_table *spt);

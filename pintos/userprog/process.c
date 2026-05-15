@@ -931,15 +931,14 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		struct spt_aux temp;
-		temp.flie = file;				   // 어떤 파일에서 읽을지
-		temp.offset = offset;			   // 파일에서 읽기 시작할 위치
-		temp.page_read_bytes = read_bytes; // 데이터 양
-		temp.page_zero_bytes = zero_bytes; // 패딩 양
-		temp.va = upage;				   // 가상주소 어디에 쓸지
+		struct aux temp;
+		temp.file = file;						// 어떤 파일에서 읽을지
+		temp.offset = offset;					// 파일에서 읽기 시작할 위치
+		temp.page_read_bytes = page_read_bytes; // 데이터 양
+		temp.page_zero_bytes = page_zero_bytes; // 패딩 양
 
-		void *aux = malloc(sizeof(struct spt_aux));
-		memset(aux, &temp, sizeof(struct spt_aux));
+		void *aux = malloc(sizeof(struct aux));
+		memcpy(aux, &temp, sizeof(struct aux));
 
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,
 											writable, lazy_load_segment, aux))

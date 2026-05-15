@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "vm/uninit.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -16,6 +17,7 @@ void vm_init(void)
 	register_inspect_intr();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -60,7 +62,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* TODO: Insert the page into the spt. */
 
 		struct page *newpage = malloc(sizeof(struct page));
-		uninit_new(newpage, upage, init, VM_UNINIT, aux);
+		if (type == VM_ANON)
+			uninit_new(newpage, upage, init, type, aux, anon_initializer);
+		else if (type == VM_FILE)
+			uninit_new(newpage, upage, init, type, aux, file_backed_initializer);
 		spt_insert_page(spt, newpage);
 	}
 
@@ -130,10 +135,14 @@ vm_evict_frame(void)
  * space.*/
 static struct frame *
 vm_get_frame(void)
-{
-	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
-
+{ /* TODO: Fill this function. */
+	struct frame *frame = malloc(sizeof(frame));
+	frame->kva = palloc_get_page(PAL_USER);
+	frame->page = NULL;
+	/*
+		page allocation이 실패했을 때 swap out을 처리할 필요가 없다.
+		TODO: `PANIC("todo")` 처리하기
+	*/
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
 	return frame;
@@ -204,7 +213,7 @@ void vm_dealloc_page(struct page *page)
 }
 
 /* Claim the page that allocate on VA. */
-bool vm_claim_page(void *va UNUSED)
+bool vm_claim_page(void *va)
 {
 	struct page *page = NULL;
 	/* TODO: Fill this function */
