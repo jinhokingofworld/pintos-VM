@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "list.h"
 // #define VM ;
 
 #ifdef VM
@@ -649,19 +650,8 @@ load(const char *file_name, struct intr_frame *if_)
 						goto done;
 				}
 				else
-				{
-					/* Entirely zero.
-					 * Don't read anything from disk. */
-					read_bytes = 0;
-					zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
-				}
-				if (!load_segment(file, file_page, (void *)mem_page,
-								  read_bytes, zero_bytes, writable))
 					goto done;
-			}
-			else
-				goto done;
-			break;
+				break;
 		}
 	}
 
@@ -919,7 +909,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
             off_t ofs;  // 파일 어디서부터?
             size_t read_bytes;  // 몇 바이트 읽어?
             size_t zero_bytes;  // 나머지 몇 바이트 0으로 채워?
-        }
+        };
 		void *aux = NULL;
 		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
