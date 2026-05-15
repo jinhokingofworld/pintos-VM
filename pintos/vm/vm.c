@@ -212,9 +212,17 @@ vm_do_claim_page (struct page *page) {
 }
 
 /* Initialize new supplemental page table */
-void
-supplemental_page_table_init (struct supplemental_page_table *spt) {
-	hash_init(&spt->hash_table, spt->hash_table.hash, spt->hash_table.less, spt->hash_table.aux);
+bool
+supplemental_page_table_init (struct supplemental_page_table *spt) {	
+	
+	// 엣지 케이스 처리
+	ASSERT (spt != NULL);
+	
+	// spt 초기화 실패시, 프로세스 종료
+	if (!hash_init(&spt->hash_table, spt->hash_table.hash, spt->hash_table.less, spt->hash_table.aux)) {
+		return false;
+	}
+	return true;
 }
 
 /* Copy supplemental page table from src to dst */

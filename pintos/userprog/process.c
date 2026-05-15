@@ -112,7 +112,9 @@ process_create_initd (const char *file_name) {
 static void
 initd (void *initd_info) {
 #ifdef VM
-	supplemental_page_table_init (&thread_current ()->spt);
+	if (!supplemental_page_table_init (&thread_current ()->spt)) {
+		thread_exit();
+	}
 #endif
 	struct initd_info *info = initd_info;
 	char *file_name = info->file_name;
