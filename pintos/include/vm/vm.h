@@ -5,6 +5,9 @@
 #include "threads/palloc.h"
 #include <hash.h>
 
+// 함수 타입을 간결히 나타내기 위해 선언
+typedef bool page_initializer(struct page*, enum vm_type, void *);
+
 enum vm_type
 {
 	/* page not initialized */

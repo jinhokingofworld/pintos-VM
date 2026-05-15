@@ -60,8 +60,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 	struct page *page;
+	page_initializer* initializer = NULL;
 
-	/* Check wheter the upage is already occupied or not. */
 	// 현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
 	if (spt_find_page(spt, upage) == NULL)
 	{
@@ -72,9 +72,20 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			goto err;
 		}
 
-		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
+		// type에 따라 initializer 선택
+		switch (type) {
+			case VM_ANON:
+				initializer = anon_initializer;
+				break;
+			case VM_FILE:
+				initializer = file_backed_initializer;
+				break;
+		}
+		
+		// 페이지를 uninit 타입으로 초기화
+		uninit_new(page, upage, init, type, aux, initializer); 
 
-		/* TODO: Insert the page into the spt. */
+		// spt에 페이지 삽입
 		if (!spt_insert_page(spt, page)) {
 			goto err;
 		}
