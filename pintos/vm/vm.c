@@ -105,8 +105,14 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
-	/* TODO: Fill this function. */
-
+	
+	// TBD: 엣지 케이스 처리
+	
+	/* 중복되는 페이지가 없었다면, 성공*/
+	if (hash_insert(&spt->hash_table, &page->elem) == NULL) {
+		succ = true;
+	}
+	
 	return succ;
 }
 
