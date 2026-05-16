@@ -60,13 +60,25 @@ err:
 	return false;
 }
 
-/* SPT에서 VA에 해당하는 page를 찾아 반환한다.
- * 찾지 못하면 NULL을 반환한다. */
+
+
+/* SPT에서 VA가 속한 가상 페이지를 찾아 반환한다.
+ * VA는 페이지 시작 주소로 내림해 해시 키와 맞춘다.
+ * 해당 페이지가 없으면 NULL을 반환한다. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt, void *va) {
-	struct page *page = NULL;
+    struct page page;
+    struct hash_elem *result_elem;
 
-	return page;
+    /* 임시 page는 hash_find에 넘길 검색 키 역할만 한다. */
+    page.va = pg_round_down(va);
+
+    result_elem = hash_find(&spt->pages, &page.hash_elem);
+    if (result_elem == NULL) {
+        return NULL;
+    }
+    
+    return hash_entry(result_elem, struct page, hash_elem);
 }
 
 /* Insert PAGE into spt with validation. */
