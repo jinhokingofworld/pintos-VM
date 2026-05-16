@@ -281,21 +281,24 @@ hash_int (int i) {
 	return hash_bytes (&i, sizeof i);
 }
 
-/* Returns the bucket in H that E belongs in. */
+/* 해시 원소 E가 해시 테이블 H의 어느 버킷에 들어가야 하는지 찾는다.
+   계산한 해시값을 버킷 개수 범위로 줄여 해당 버킷 리스트를 반환한다. */
 static struct list *
 find_bucket (struct hash *h, struct hash_elem *e) {
+	/* bucket_cnt는 2의 거듭제곱이므로 비트 마스크로 인덱스를 구한다. */
 	size_t bucket_idx = h->hash (e, h->aux) & (h->bucket_cnt - 1);
 	return &h->buckets[bucket_idx];
 }
 
-/* Searches BUCKET in H for a hash element equal to E.  Returns
-   it if found or a null pointer otherwise. */
+/* BUCKET 안에서 E와 같은 해시 원소를 찾는다.
+   찾으면 해당 원소를 반환하고, 없으면 NULL을 반환한다. */
 static struct hash_elem *
 find_elem (struct hash *h, struct list *bucket, struct hash_elem *e) {
 	struct list_elem *i;
 
 	for (i = list_begin (bucket); i != list_end (bucket); i = list_next (i)) {
 		struct hash_elem *hi = list_elem_to_hash_elem (i);
+		/* 서로 어느 쪽도 작지 않으면 같은 원소로 판단한다. */
 		if (!h->less (hi, e, h->aux) && !h->less (e, hi, h->aux))
 			return hi;
 	}
