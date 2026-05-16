@@ -83,7 +83,16 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			goto err;
 		}
 
-		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
+		/* uninit_new()는 페이지를 uninit 상태로 등록하고,
+		 * 첫 page fault 때 initializer와 init(aux)를 호출해 실제 페이지로 전환한다. */
+		uninit_new(page, upage, init, type, aux, initializer);
+
+		/* 아래 값들은 struct page 공통 메타데이터다.
+		 * uninit_new()가 *page 전체를 초기화하므로 호출 후에 설정한다.
+		 * uninit_new()의 인자는 바꾸지 않아 uninit_new() 함수의 책임을 유지한다. */
+		page->writable = writable;
+		page->owner = thread_current ();
+		page->accessed = false;
 
 		/* TODO: Insert the page into the spt. */
 		if (!spt_insert_page(spt, page)) {
