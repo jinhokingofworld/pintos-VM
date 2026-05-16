@@ -60,6 +60,16 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 	struct page *page;
+	bool (*initializer) (struct page *, enum vm_type, void *) = NULL;
+
+	switch (VM_TYPE (type)) {
+	case VM_ANON:
+		initializer = anon_initializer;
+		break;
+	case VM_FILE:
+		initializer = file_backed_initializer;
+		break;
+	}
 
 	/* Check wheter the upage is already occupied or not. */
 	// 현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
@@ -79,6 +89,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			goto err;
 		}
 	}
+	else
+		return false;
 	return true;
 err:
 	return false;
