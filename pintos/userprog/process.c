@@ -23,6 +23,7 @@
 
 #ifdef VM
 #include "vm/vm.h"
+#include "anon.h"
 #endif
 
 static void process_cleanup(void);
@@ -904,17 +905,23 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		/* TODO: lazy_load_segment()에 전달할 정보를 aux에 설정한다. */
         /* lazy_load_segment에 넘겨줄 정보 묶음 */
         /* "파일 어디서부터 몇 바이트 읽어야 해" 라는 정보 */
-        struct load_info {
-            struct file *file;  // 어떤 파일?
-            off_t ofs;  // 파일 어디서부터?
-            size_t read_bytes;  // 몇 바이트 읽어?
-            size_t zero_bytes;  // 나머지 몇 바이트 0으로 채워?
-        };
-		void *aux = NULL;
+
+		/* 프레임 초기화를 위한 정보 */
+		struct load_info aux = malloc(sizeof(*aux));
+		aux.file = file;
+		aux.offset = offset;
+		size_t read_bytes = read_bytes;
+		size_t zero_bytes = zero_bytes;
+
 		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+					writable, lazy_load_segment, aux)) {
+			
+			/* aux 구조체 해제*/
+			free(aux);
 			return false;
+		}
+			
 
 		/* 다음 페이지로 이동. */
 		read_bytes -= page_read_bytes;
