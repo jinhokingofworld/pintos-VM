@@ -78,7 +78,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
-		if (page = malloc(sizeof(*page)) == NULL) {
+		page = malloc(sizeof(*page));
+		if (page == NULL) {
 			goto err;
 		}
 
