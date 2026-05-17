@@ -215,7 +215,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 
 	// PT에 매핑이 있었던 경우 -> 권한 문제 때문에 실패
 	if (not_present == false)
-		exit(1);
+		return false;
 
 	// PT에 매핑이 없었던 경우 -> SPT에서 확인해보기
 	else
@@ -223,25 +223,25 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		// spt에서 찾아보기
 		struct page *found_page = spt_find_page(spt, addr);
 
-		// SPT에서 페이지 정보를 찾을 수 있는 경우
+		// spt에 찾는 페이지가 있다면,
 		if (found_page != NULL)
 		{
 			// page 구조체의 권한을 확인 -> 에러
 			if (found_page->writable != write)
-				exit(1);
+				return false;
 			// spt의 page 내용대로 Frame 요청
 			return vm_do_claim_page(found_page);
 		}
 
-		// SPT에서 페이지 정보를 찾을 수 없는 경우
-		else // found_page == NULL
+		// spt에 찾는 페이지가 없다면
+		else
 		{
 			// stack growth 조건을 확인
 			if (!is_certified_stackgrowth())
-				exit(1);
+				return false;
 			// user인지 확인
 			if (user != true)
-				exit(1);
+				return false;
 			// stack growth 실행
 			vm_stack_growth(addr);
 		}
