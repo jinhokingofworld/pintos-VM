@@ -54,6 +54,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	/* Check wheter the upage is already occupied or not. */
 	// 현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
+	//++5.17 임시 페이지 키를 넘겨 주어야 한다고 함. 복사본을 넘겨주어야 하는 걸까? 왜?
 	if (spt_find_page(spt, upage) == NULL)
 	{
 		/* TODO: Create the page, fetch the initialier according to the VM type,
@@ -78,13 +79,16 @@ err:
 struct page *
 spt_find_page(struct supplemental_page_table *spt, void *va)
 {
-	struct page *page = NULL;
+	void *aligned_va = pg_round_down(va);
+	struct page *page = malloc(sizeof(page));
+	page->va = aligned_va;	
 
 	/* TODO: Fill this function. */
 	struct hash_elem *temp = hash_find(&spt->page_hash, va);
 	if (temp == NULL)
 		return NULL;
 
+	free(page);
 	page = hash_entry(temp, struct page, elem);
 
 	return page;
@@ -262,4 +266,10 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+}
+
+void *pg_round_down(void *va)
+{
+	void *aligned = (uint64_t)va & !7;
+	return aligned;
 }
