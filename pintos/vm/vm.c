@@ -220,10 +220,11 @@ void vm_dealloc_page(struct page *page)
 }
 
 /* Claim the page that allocate on VA. */
+//stack growth에서 많이 사용할 것 
 bool vm_claim_page(void *va)
 {
-	struct page *page = NULL;
-	/* TODO: Fill this function */
+	struct page *page = malloc(sizeof(struct page));
+	page->va = va;
 
 	return vm_do_claim_page(page);
 }
