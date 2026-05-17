@@ -67,6 +67,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		else if (type == VM_FILE)
 			uninit_new(newpage, upage, init, type, aux, file_backed_initializer);
 		spt_insert_page(spt, newpage);
+		return true;
 	}
 
 err:
