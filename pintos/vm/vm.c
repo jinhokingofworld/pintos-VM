@@ -37,30 +37,56 @@ static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
-/* Create the pending page object with initializer. If you want to create a
- * page, do not create it directly and make it through this function or
- * `vm_alloc_page`. */
+/* TYPE에 맞는 사용자 가상 페이지를 만들고 현재 스레드의 SPT에 등록한다.
+ * 실제 물리 프레임 할당은 지금 하지 않고, 첫 페이지 폴트 때 INIT/AUX로 초기화되도록
+ * uninit page 상태로 준비한다. */
 bool
 vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		vm_initializer *init, void *aux) {
 
-	ASSERT (VM_TYPE(type) != VM_UNINIT)
-
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
-	/* Check wheter the upage is already occupied or not. */
-	if (spt_find_page (spt, upage) == NULL) {
-		/* TODO: Create the page, fetch the initialier according to the VM type,
-		 * TODO: and then create "uninit" page struct by calling uninit_new. You
-		 * TODO: should modify the field after calling the uninit_new. */
+    if (pg_round_down(upage) != upage) {
+        goto err;
+    }
 
-		/* TODO: Insert the page into the spt. */
-	}
+	/* 같은 가상 주소의 페이지가 이미 SPT에 있으면 중복 할당이므로 실패한다. */
+	if (spt_find_page (spt, upage) != NULL) {
+        return false;
+    }
+	
+    /* SPT에 저장할 page 구조체를 동적으로 할당한다. */
+    struct page *page = malloc(sizeof(struct page));
+
+    if (page == NULL) {
+        goto err;
+    }
+
+    /* 페이지 종류에 따라 첫 폴트 시 호출할 실제 initializer를 연결한다. */
+    switch(VM_TYPE(type)) {
+        case VM_ANON: 
+            uninit_new(page, upage, init, type, aux, anon_initializer);
+            break;
+        case VM_FILE:
+            uninit_new(page, upage, init, type, aux, file_backed_initializer);
+            break;
+        default:
+            free(page);
+            goto err;
+    }
+    /* uninit_new()가 page 전체를 초기화한 뒤, 추가 메타데이터를 채운다. */
+    page->writable = writable;
+
+    /* 준비된 page를 SPT에 등록하면 이후 페이지 폴트에서 찾아 쓸 수 있다. */
+    if (spt_insert_page(spt, page)) {
+        return true;
+    } else {
+        free(page);
+        return false;
+    }
 err:
 	return false;
 }
-
-
 
 /* SPT에서 VA가 속한 가상 페이지를 찾아 반환한다.
  * VA는 페이지 시작 주소로 내림해 해시 키와 맞춘다.
