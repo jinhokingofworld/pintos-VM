@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "list.h"
+#include "vm/vm.h"
 // #define VM ;
 
 #ifdef VM
@@ -347,6 +348,13 @@ process_exec (void *f_name) {
 
 	/* We first kill the current context */
 	process_cleanup();
+
+	/* SPT kill 이후 load전에 해시테이블 초기화 작업 */
+	#ifdef VM
+		if (!supplemental_page_table_init (&thread_current ()->spt))
+			success = false;
+		else
+	#endif
 
 	/* And then load the binary */
 	success = load(file_name, &_if);
