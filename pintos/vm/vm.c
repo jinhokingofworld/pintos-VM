@@ -47,6 +47,7 @@ static struct frame *vm_evict_frame (void);
 static uint64_t page_hash (const struct hash_elem *e, void *aux UNUSED);
 static bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 static void page_destroy (struct hash_elem *e, void *aux UNUSED);
+static bool is_certified_stackgrowth (void); // 정의 안되어있어서 우선 stub 처리 - 추후 구현 필요
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -210,6 +211,13 @@ vm_stack_growth(void *addr UNUSED)
 {
 }
 
+static bool
+is_certified_stackgrowth(void)
+{
+	/* 정의 안되어있어서 우선 stub 처리 - 추후 구현 필요 */
+	return true;
+}
+
 /* Handle the fault on write_protected page */
 static bool
 vm_handle_wp(struct page *page UNUSED)
@@ -227,7 +235,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 
 	// PT에 매핑이 있었던 경우 -> 권한 문제 때문에 실패
 	if (not_present == false)
-		exit(1);
+		return false;
 
 	// PT에 매핑이 없었던 경우 -> SPT에서 확인해보기
 	else
@@ -240,7 +248,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		{
 			// page 구조체의 권한을 확인 -> 에러
 			if (found_page->writable != write)
-				exit(1);
+				return false;
 			// spt의 page 내용대로 Frame 요청
 			return vm_do_claim_page(found_page);
 		}
@@ -250,10 +258,10 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		{
 			// stack growth 조건을 확인
 			if (!is_certified_stackgrowth())
-				exit(1);
+				return false;
 			// user인지 확인
 			if (user != true)
-				exit(1);
+				return false;
 			// stack growth 실행
 			vm_stack_growth(addr);
 		}
