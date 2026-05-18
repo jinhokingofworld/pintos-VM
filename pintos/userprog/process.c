@@ -881,9 +881,25 @@ install_page(void *upage, void *kpage, bool writable)
 static bool
 lazy_load_segment(struct page *page, void *aux)
 {
-	/* TODO: Load the segment from the file */
-	/* TODO: This called when the first page fault occurs on address VA. */
-	/* TODO: VA is available when calling this function. */
+	/* page와 aux를 이용해 데이터를 프레임으로 올리는 함수 */
+	struct segment_load_info* info = aux;
+	bool success = false;
+
+	/* 프레임에 파일 내용 로드 */
+	if (file_read(info->file, page->frame->kva, info->read_bytes) != info->read_bytes)
+		{
+			goto done;
+		}
+	
+	/* 남는 공간은 0으로 초기화 */
+	memset((uint8_t *)page->frame->kva + info->read_bytes, 0, info->zero_bytes);
+	
+	success = true;
+
+done:		
+	/* 결과와 상관없이 aux 구조체를 해제 */
+	free(info);
+	return success;
 }
 
 /* VM용 세그먼트 적재 함수.
@@ -922,7 +938,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 			return false;
 		}
 			
-
 		/* 다음 페이지로 이동. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;

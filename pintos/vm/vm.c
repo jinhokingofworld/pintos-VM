@@ -49,7 +49,10 @@ static void page_destroy (struct hash_elem *e, void *aux UNUSED);
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
- * `vm_alloc_page`. */
+ * `vm_alloc_page`. 
+ * init 함수는 aux를 해석해 frame을 초기화하는 callback 함수다. 
+ * aux의 소유권은 init 함수가 갖는다.
+ * */
 bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writable,
 									vm_initializer *init, void *aux)
 {
