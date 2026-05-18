@@ -46,6 +46,8 @@ anon_swap_in (struct page *page, void *kva) {
 static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+	//프레임을 뺄 때, 매핑 정보까지 변경해줘야 함
+	//pml4_어쩌구
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
