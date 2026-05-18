@@ -19,7 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "list.h"
-// #define VM ;
+#define VM ;
 
 #ifdef VM
 #include "vm/vm.h"
@@ -897,7 +897,8 @@ lazy_load_segment(struct page *page, void *aux)
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 	/* Load this page. */
-		
+	file_close(a->file);
+	free(a);
 	return true;
 }
 
@@ -920,22 +921,29 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		/* TODO: lazy_load_segment()에 전달할 정보를 aux에 설정한다. */
         /* lazy_load_segment에 넘겨줄 정보 묶음 */
         /* "파일 어디서부터 몇 바이트 읽어야 해" 라는 정보 */
-        struct load_info {
-            struct file *file;  // 어떤 파일?
-            off_t ofs;  // 파일 어디서부터?
-            size_t read_bytes;  // 몇 바이트 읽어?
-            size_t zero_bytes;  // 나머지 몇 바이트 0으로 채워?
-        };
-		void *aux = NULL;
+        /* TODO: Set up aux to pass information to the lazy_load_segment. */
+		struct aux temp;
+		temp.file = file_reopen(file);			// 어떤 파일에서 읽을지, 열어서 줘야 함. load로 돌아간 이후에는 close됨
+		temp.offset = ofs;						// 파일에서 읽기 시작할 위치
+		temp.page_read_bytes = page_read_bytes; // 데이터 양
+		temp.page_zero_bytes = page_zero_bytes; // 패딩 양
+		if (temp.file == NULL) return false;	// 파일 열기 실패 처리
+
+		void *aux = malloc(sizeof(struct aux));
+		memcpy(aux, &temp, sizeof(struct aux));
+
 		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+					writable, lazy_load_segment, aux)) {
+			file_close(temp.file);
+			free(aux);
 			return false;
+		}
 
 		/* 다음 페이지로 이동. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
-		offset += page_read_bytes;
+		ofs += page_read_bytes;
 		upage += PGSIZE;
 	}
 	return true;
@@ -952,6 +960,7 @@ setup_stack(struct intr_frame *if_)
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
+	
 
 	return success;
 }

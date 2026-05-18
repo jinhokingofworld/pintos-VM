@@ -68,24 +68,21 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
-		if (page = malloc(sizeof(*page)) == NULL) {
+		page = malloc(sizeof(*page));
+		if (page == NULL) { // 메모리 할당 실패 처리
 			goto err;
 		}
 
-		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
-
 		/* TODO: Insert the page into the spt. */
-
-		struct page *newpage = malloc(sizeof(struct page));
-		if (newpage == NULL) 
-			goto err;
-		newpage->owner = thread_current();
+		page->owner = thread_current();
 		
-		if (type == VM_ANON)
-			uninit_new(newpage, upage, init, type, aux, anon_initializer);
-		else if (type == VM_FILE)
-			uninit_new(newpage, upage, init, type, aux, file_backed_initializer);
+		if (VM_TYPE(type) == VM_ANON)
+			uninit_new(page, upage, init, type, aux, anon_initializer);
+		else if (VM_TYPE(type) == VM_FILE)
+			uninit_new(page, upage, init, type, aux, file_backed_initializer);
+
 		if (!spt_insert_page(spt, page)) {
+			free(page);
 			goto err;
 		}
 		return true;
@@ -174,10 +171,12 @@ vm_evict_frame(void)
 static struct frame *
 vm_get_frame(void)
 { /* TODO: Fill this function. */
-	struct frame *frame = malloc(sizeof(frame));
+	struct frame *frame = malloc(sizeof(*frame));
+	if (frame == NULL) return NULL;
 
 	// palloc으로 프레임을 가져오는 것을 시도
 	frame->kva = palloc_get_page(PAL_USER);
+	if (frame->kva == NULL) return NULL;
 	frame->page = NULL;
 
 	// palloc이 실패했다 == 메모리가 꽉 찼다 == swap out 필요
@@ -215,7 +214,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 
 	// PT에 매핑이 있었던 경우 -> 권한 문제 때문에 실패
 	if (not_present == false)
-		exit(1);
+		return false;
 
 	// PT에 매핑이 없었던 경우 -> SPT에서 확인해보기
 	else
@@ -227,8 +226,8 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		if (found_page != NULL)
 		{
 			// page 구조체의 권한을 확인 -> 에러
-			if (found_page->writable != write)
-				exit(1);
+			if (write && !found_page->writable)
+				return false;
 			// spt의 page 내용대로 Frame 요청
 			return vm_do_claim_page(found_page);
 		}
@@ -238,10 +237,10 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		{
 			// stack growth 조건을 확인
 			if (!is_certified_stackgrowth())
-				exit(1);
+				return false;
 			// user인지 확인
 			if (user != true)
-				exit(1);
+				return false;
 			// stack growth 실행
 			vm_stack_growth(addr);
 		}
@@ -260,10 +259,8 @@ void vm_dealloc_page(struct page *page)
 //stack growth에서 많이 사용할 것 
 bool vm_claim_page(void *va)
 {
-	struct page *page = malloc(sizeof(struct page));
-	page->va = va;
-
-	return vm_do_claim_page(page);
+	struct page *page = spt_find_page(&thread_current()->spt, va);
+	return page != NULL && vm_do_claim_page(page);
 }
 
 /* Claim the PAGE and set up the mmu. */
@@ -276,11 +273,19 @@ vm_do_claim_page(struct page *page)
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
+	list_push_front(&frame_table, &page->frame->elem); //프레임 테이블에 넣음
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	pml4_set_page(curr->pml4, page->va, frame->kva, page->writable);
+	if(!pml4_set_page(curr->pml4, page->va, frame->kva, page->writable))
+	{
+		//이거 공부하기
+		page->frame = NULL;
+		frame->page = NULL;
+		palloc_free_page(frame->kva);
+		free(frame);
+		return false;
+	}
 
-	// 매크로 함수였어
 	return swap_in(page, frame->kva);
 }
 

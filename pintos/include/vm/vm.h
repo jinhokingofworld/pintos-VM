@@ -110,7 +110,7 @@ struct aux
 struct list frame_table;
 
 #include "threads/thread.h"
-void supplemental_page_table_init(struct supplemental_page_table *spt);
+bool supplemental_page_table_init(struct supplemental_page_table *spt);
 bool supplemental_page_table_copy(struct supplemental_page_table *dst,
 								  struct supplemental_page_table *src);
 void supplemental_page_table_kill(struct supplemental_page_table *spt);
