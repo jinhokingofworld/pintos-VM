@@ -13,6 +13,7 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/mmu.h"
@@ -888,9 +889,27 @@ install_page(void *upage, void *kpage, bool writable)
 static bool
 lazy_load_segment(struct page *page, void *aux)
 {
-	/* TODO: Load the segment from the file */
-	/* TODO: This called when the first page fault occurs on address VA. */
-	/* TODO: VA is available when calling this function. */
+	struct load_info *load_info = aux;
+	uint8_t *kva;
+	bool success = false;
+
+	ASSERT (page != NULL);
+	ASSERT (page->frame != NULL);
+	ASSERT (load_info != NULL);
+	ASSERT (load_info->page_read_bytes + load_info->page_zero_bytes == PGSIZE);
+
+	kva = page->frame->kva;
+
+	if (file_read_at (load_info->file, kva, load_info->page_read_bytes,
+			load_info->offset) == (off_t) load_info->page_read_bytes)
+	{
+		memset (kva + load_info->page_read_bytes, 0,
+				load_info->page_zero_bytes);
+		success = true;
+	}
+
+	free (load_info);
+	return success;
 }
 
 /* VM용 세그먼트 적재 함수.
@@ -912,17 +931,24 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		/* TODO: lazy_load_segment()에 전달할 정보를 aux에 설정한다. */
         /* lazy_load_segment에 넘겨줄 정보 묶음 */
         /* "파일 어디서부터 몇 바이트 읽어야 해" 라는 정보 */
-        struct load_info {
-            struct file *file;  // 어떤 파일?
-            off_t ofs;  // 파일 어디서부터?
-            size_t read_bytes;  // 몇 바이트 읽어?
-            size_t zero_bytes;  // 나머지 몇 바이트 0으로 채워?
-        };
-		void *aux = NULL;
-		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+		struct load_info *load_info = malloc(sizeof *load_info);
+		if(load_info == NULL)
+		{
 			return false;
+		}
+
+		load_info->file = file;
+		load_info->offset = ofs;
+		load_info->page_read_bytes = page_read_bytes;
+		load_info->page_zero_bytes = page_zero_bytes;
+
+		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
+		if(!vm_alloc_page_with_initializer(VM_ANON, upage,
+					writable, lazy_load_segment, load_info))
+		{
+			free(load_info);
+			return false;
+		}
 
 		/* 다음 페이지로 이동. */
 		read_bytes -= page_read_bytes;

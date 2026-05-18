@@ -98,7 +98,8 @@ struct supplemental_page_table
 	struct hash page_hash;
 };
 
-struct aux
+/* aux #1 : load_info : load()에서 lazy_load_segment()에 넘겨줄 정보 묶음 */
+struct load_info
 {
 	struct file *file;		// 파일
 	off_t offset;			// 파일의 어디부터 읽어야 할 지
