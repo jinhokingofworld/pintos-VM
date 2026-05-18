@@ -30,22 +30,19 @@ struct hash_elem {
 	struct list_elem list_elem;
 };
 
-/* Converts pointer to hash element HASH_ELEM into a pointer to
- * the structure that HASH_ELEM is embedded inside.  Supply the
- * name of the outer structure STRUCT and the member name MEMBER
- * of the hash element.  See the big comment at the top of the
- * file for an example. */
+/* HASH_ELEM이 들어 있는 바깥 구조체의 포인터를 구한다.
+ * STRUCT에는 바깥 구조체 타입을, MEMBER에는 그 안의 hash_elem 멤버 이름을 넘긴다. */
 #define hash_entry(HASH_ELEM, STRUCT, MEMBER)                   \
 	((STRUCT *) ((uint8_t *) &(HASH_ELEM)->list_elem        \
 		- offsetof (STRUCT, MEMBER.list_elem)))
 
-/* Computes and returns the hash value for hash element E, given
- * auxiliary data AUX. */
+/* 해시 원소 E의 키를 기준으로 해시값을 계산해 반환한다.
+ * AUX는 호출자가 넘긴 보조 데이터이며, 버킷 위치를 정할 때 사용된다. */
 typedef uint64_t hash_hash_func (const struct hash_elem *e, void *aux);
 
-/* Compares the value of two hash elements A and B, given
- * auxiliary data AUX.  Returns true if A is less than B, or
- * false if A is greater than or equal to B. */
+/* 두 해시 원소 A와 B의 키를 비교한다.
+ * AUX는 호출자가 넘긴 보조 데이터이다.
+ * A가 B보다 작으면 true, A가 B보다 크거나 같으면 false를 반환한다. */
 typedef bool hash_less_func (const struct hash_elem *a,
 		const struct hash_elem *b,
 		void *aux);
@@ -54,14 +51,14 @@ typedef bool hash_less_func (const struct hash_elem *a,
  * data AUX. */
 typedef void hash_action_func (struct hash_elem *e, void *aux);
 
-/* Hash table. */
+/* 해시 테이블. */
 struct hash {
-	size_t elem_cnt;            /* Number of elements in table. */
-	size_t bucket_cnt;          /* Number of buckets, a power of 2. */
-	struct list *buckets;       /* Array of `bucket_cnt' lists. */
-	hash_hash_func *hash;       /* Hash function. */
-	hash_less_func *less;       /* Comparison function. */
-	void *aux;                  /* Auxiliary data for `hash' and `less'. */
+	size_t elem_cnt;            /* 테이블에 들어 있는 원소 개수. */
+	size_t bucket_cnt;          /* 버킷 개수. 2의 거듭제곱이어야 한다. */
+	struct list *buckets;       /* `bucket_cnt'개 만큼의 리스트 배열. */
+	hash_hash_func *hash;       /* 해시 함수. */
+	hash_less_func *less;       /* 비교 함수. */
+	void *aux;                  /* `hash'와 `less'에 넘겨 줄 보조 데이터. */
 };
 
 /* A hash table iterator. */
@@ -71,7 +68,7 @@ struct hash_iterator {
 	struct hash_elem *elem;     /* Current hash element in current bucket. */
 };
 
-/* Basic life cycle. */
+/* 기본 생명 주기 */
 bool hash_init (struct hash *, hash_hash_func *, hash_less_func *, void *aux);
 void hash_clear (struct hash *, hash_action_func *);
 void hash_destroy (struct hash *, hash_action_func *);
@@ -98,8 +95,3 @@ uint64_t hash_string (const char *);
 uint64_t hash_int (int);
 
 #endif /* lib/kernel/hash.h */
-
-uint64_t h_func(const struct hash_elem *e, void *aux);
-bool l_func(const struct hash_elem *a,
-		const struct hash_elem *b,
-		void *aux);

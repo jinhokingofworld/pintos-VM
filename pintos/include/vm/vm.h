@@ -1,6 +1,7 @@
 #ifndef VM_VM_H
 #define VM_VM_H
 #include <stdbool.h>
+#include <lib/kernel/hash.h>
 #include "threads/palloc.h"
 #include <hash.h>
 
@@ -38,26 +39,22 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
-/* The representation of "page".
- * This is kind of "parent class", which has four "child class"es, which are
- * uninit_page, file_page, anon_page, and page cache (project4).
+/* 사용자 가상 페이지 하나를 표현하는 구조체.
+ * uninit, anon, file 등 페이지 종류별 정보를 함께 관리한다.
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
-struct page
-{
-	const struct page_operations *operations;
-	void *va;			 /* Address in terms of user space */
-	struct frame *frame; /* Back reference for frame */
+struct page {
+	const struct page_operations *operations; /* 페이지 종류별 동작 함수. */
+	void *va;              /* 사용자 가상 주소. */
+	struct frame *frame;   /* 연결된 물리 프레임. */
 
-	/* Your implementation */
-	struct thread *owner;
-	struct hash_elem elem;
-	bool writable;
-	// swap에 있는지 없는지도 알아야 할 것
-
-	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
-	union // 이거를 모르고서는 아무것도 할 수 없음
-	{
+	/* TODO: SPT 관리와 페이지 권한에 필요한 필드. */
+    struct thread *owner; /* 이 페이지가 속한 주소 공간의 스레드. */
+    struct hash_elem hash_elem; /* SPT 해시 연결 고리. */
+    bool writable;              /* 쓰기 가능 여부. */
+	bool accessed;
+	
+	/* 페이지 타입별 세부 정보. */
+	union {
 		struct uninit_page uninit;
 		struct anon_page anon;
 		struct file_page file;
@@ -133,5 +130,4 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage,
 void vm_dealloc_page(struct page *page);
 bool vm_claim_page(void *va);
 enum vm_type page_get_type(struct page *page);
-void *pg_round_down(void *va);
 #endif /* VM_VM_H */

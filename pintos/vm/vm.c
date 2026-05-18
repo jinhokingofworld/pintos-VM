@@ -1,8 +1,11 @@
 /* vm.c: Generic interface for virtual memory objects. */
 
 #include "threads/malloc.h"
+#include "threads/mmu.h"
+#include "threads/vaddr.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "threads/vaddr.h"
 #include "vm/uninit.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
@@ -37,9 +40,12 @@ page_get_type(struct page *page)
 }
 
 /* Helpers */
-static struct frame *vm_get_victim(void);
-static bool vm_do_claim_page(struct page *page);
-static struct frame *vm_evict_frame(void);
+static struct frame *vm_get_victim (void);
+static bool vm_do_claim_page (struct page *page);
+static struct frame *vm_evict_frame (void);
+static uint64_t page_hash (const struct hash_elem *e, void *aux UNUSED);
+static bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+static void page_destroy (struct hash_elem *e, void *aux UNUSED);
 
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -50,7 +56,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
 
-	struct supplemental_page_table *spt = &thread_current()->spt;
+	// upage, init, aux가 null일때는 검사하지 않는건가? 어떻게 믿고 사용하는거지?
+
+	struct supplemental_page_table *spt = &thread_current ()->spt;
+	struct page *page;
 
 	/* Check wheter the upage is already occupied or not. */
 	// 현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
@@ -59,6 +68,12 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
+		if (page = malloc(sizeof(*page)) == NULL) {
+			goto err;
+		}
+
+		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
+
 		/* TODO: Insert the page into the spt. */
 
 		struct page *newpage = malloc(sizeof(struct page));
@@ -70,42 +85,59 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			uninit_new(newpage, upage, init, type, aux, anon_initializer);
 		else if (type == VM_FILE)
 			uninit_new(newpage, upage, init, type, aux, file_backed_initializer);
-		spt_insert_page(spt, newpage);
+		if (!spt_insert_page(spt, page)) {
+			goto err;
+		}
 		return true;
 	}
-
 err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* SPT에서 VA에 해당하는 page를 찾아 반환한다.
+ * 찾지 못하면 NULL을 반환한다. */
 struct page *
-spt_find_page(struct supplemental_page_table *spt, void *va)
-{
-	void *aligned_va = pg_round_down(va);
-	struct page p;
-	p.va = aligned_va;	
+spt_find_page (struct supplemental_page_table *spt, void *va) {
 
-	/* TODO: Fill this function. */
-	struct hash_elem *temp = hash_find(&spt->page_hash, &p.elem);
-	if (temp == NULL){
+	struct page *page = NULL;
+
+	ASSERT (spt != NULL); // spt는 적어도 존재해야 함
+
+	// va가 NULL이거나 커널 영역을 가리키는 경우
+	if (va == NULL || is_kernel_vaddr(va)) {
 		return NULL;
 	}
 
-	return hash_entry(temp, struct page, elem);
+	struct page key;
+	key.va = pg_round_down(va); // 호출되는곳에 대한 정보가 없어, 여기서 va가 페이지의 시작 주소임을 보장해주어야한다고 판단.
+
+	// key.va 값을 갖는 페이지를 불러오기
+	struct hash_elem *hash_e = hash_find(&spt->page_hash, &key.hash_elem);
+	if (hash_e != NULL) {
+		page = hash_entry(hash_e, struct page, hash_elem);
+	}
+
+	return page;
+
 }
 
 /* Insert PAGE into spt with validation. */
 bool spt_insert_page(struct supplemental_page_table *spt,
 					 struct page *page)
 {
-	ASSERT(spt != NULL)
-	ASSERT(page != NULL)
-
+	/* 어디서 호출될지 모르므로 최대한 많이 작성 */
+	ASSERT (spt != NULL); // spt는 NULL이면 안돼
+	ASSERT (page != NULL); // page는 정상적으로 생성되어야 해
+	ASSERT (is_user_vaddr(page->va)); // va는 유저 영역을 가리켜야 해
+	ASSERT (pg_ofs(page->va) == 0); // 페이지 단위로 정렬되어 있어야 해 (페이지 시작 주소)
 	int succ = false;
 	/* TODO: Fill this function. */
 	// spt에 넣는 함수 = hash에 넣는 함수
-	return !hash_insert(&spt->page_hash, &page->elem);
+	if (hash_insert(&spt->page_hash, &page->hash_elem) == NULL) {
+		succ = true;
+	}
+	
+	return succ;
 }
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
@@ -252,10 +284,28 @@ vm_do_claim_page(struct page *page)
 	return swap_in(page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
-void supplemental_page_table_init (struct supplemental_page_table *spt)
-{
-	hash_init(spt, h_func, l_func, NULL);
+/* page의 가상 주소(va)를 기준으로 해시값을 계산한다. */
+uint64_t page_hash (const struct hash_elem *e, void *aux) {
+    struct page *page = hash_entry(e, struct page, hash_elem);
+
+    return hash_bytes(&page->va, sizeof(page->va));
+}
+
+/* 두 page를 가상 주소(va) 기준으로 비교한다. */
+bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+    struct page *page_a = hash_entry(a, struct page, hash_elem);
+    struct page *page_b = hash_entry(b, struct page, hash_elem);
+
+    return page_a->va < page_b->va;
+}
+
+/* 새 프로세스의 SPT를 초기화한다. */
+bool
+supplemental_page_table_init (struct supplemental_page_table *spt) {
+    if (!hash_init (&spt->page_hash, page_hash, page_less, NULL)) {
+        return false;
+    }
+    return true;
 }
 
 /* Copy supplemental page table from src to dst */
@@ -265,10 +315,18 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 }
 
 /* Free the resource hold by the supplemental page table */
-void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
-{
+void
+supplemental_page_table_kill (struct supplemental_page_table *spt) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	hash_destroy (&spt->page_hash, page_destroy);
+}
+
+static void
+page_destroy (struct hash_elem *e, void *aux UNUSED) {
+	struct page *page = hash_entry (e, struct page, hash_elem);
+
+	vm_dealloc_page (page);
 }
 
 
@@ -279,10 +337,4 @@ bool is_certified_stackgrowth() {
 	//stack pointer보다 8바이트 아래에서 page fault를 일으킬 수 있습니다.
 	//프로세서는 예외 때문에 user mode에서 kernel mode로 전환될 때에만 stack pointer를 저장합니다
 	return true;
-}
-
-void *pg_round_down(void *va)
-{
-	void *aligned = (uint64_t)va & !7;
-	return aligned;
 }
