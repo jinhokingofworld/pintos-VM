@@ -81,14 +81,21 @@ spt_find_page (struct supplemental_page_table *spt, void *va) {
     return hash_entry(result_elem, struct page, hash_elem);
 }
 
-/* Insert PAGE into spt with validation. */
+/* PAGE를 SPT 해시 테이블에 등록한다.
+ * page->va가 이미 등록되어 있으면 중복 삽입이므로 false를 반환한다. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
-	int succ = false;
-	/* TODO: Fill this function. */
+spt_insert_page (struct supplemental_page_table *spt, struct page *page) {
+    
+    struct hash_elem *insert_elem;
 
-	return succ;
+    /* hash_insert는 같은 키가 없으면 NULL, 있으면 기존 원소를 반환한다. */
+    insert_elem = hash_insert(&spt->pages, &page->hash_elem);
+
+    if (insert_elem == NULL) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void
