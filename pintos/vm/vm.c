@@ -58,8 +58,9 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 {
 
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
-
-	// upage, init, aux가 null일때는 검사하지 않는건가? 어떻게 믿고 사용하는거지?
+	
+	// TODO: upage, init, aux가 null일때는 검사하지 않는건가? 어떻게 믿고 사용하는거지?
+	// TODO: page 정리
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 	struct page *page;
@@ -75,8 +76,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			goto err;
 		}
 
-		// type에 따라 initializer 선택
-		switch (type) {
+		// type = VM_ANON | VM_MARKER_0 인 경우에도 동작하도록 VM_TYPE 필요
+		switch (VM_TYPE(type)) {
 			case VM_ANON:
 				initializer = anon_initializer;
 				break;
@@ -84,6 +85,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 				initializer = file_backed_initializer;
 				break;
 		}
+		
 		
 		// 페이지를 uninit 타입으로 초기화
 		uninit_new(page, upage, init, type, aux, initializer); 
