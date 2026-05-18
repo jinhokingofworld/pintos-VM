@@ -919,7 +919,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		/* 다음 페이지로 이동. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
-		offset += page_read_bytes;
+		ofs += page_read_bytes;
 		upage += PGSIZE;
 	}
 	return true;
