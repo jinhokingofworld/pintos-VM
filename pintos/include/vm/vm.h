@@ -107,7 +107,7 @@ struct aux
 };
 
 // kernel이 전역으로 사용하는 테이블
-struct list frame_table;
+extern struct list frame_table;
 
 #include "threads/thread.h"
 bool supplemental_page_table_init(struct supplemental_page_table *spt);

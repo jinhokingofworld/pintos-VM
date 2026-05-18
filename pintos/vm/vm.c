@@ -10,6 +10,7 @@
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
+struct list frame_table;
 void vm_init(void)
 {
 	vm_anon_init();
