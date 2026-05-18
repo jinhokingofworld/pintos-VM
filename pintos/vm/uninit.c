@@ -61,8 +61,13 @@ uninit_initialize (struct page *page, void *kva) {
  * exit, which are never referenced during the execution.
  * PAGE will be freed by the caller. */
 static void
-uninit_destroy (struct page *page) {
-	struct uninit_page *uninit UNUSED = &page->uninit;
-	/* TODO: Fill this function.
-	 * TODO: If you don't have anything to do, just return. */
+uninit_destroy (struct page *page) {	
+	
+	// page는 NULL일 수 없지만, 확실히 하기 위해 추가
+	ASSERT (page != NULL);
+	
+	struct uninit_page *uninit = &page->uninit;
+
+	/* page fault가 나지 않았다면, 여기서 정리 */
+	free(uninit->aux);
 }
