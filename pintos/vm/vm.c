@@ -67,6 +67,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		else if (type == VM_FILE)
 			uninit_new(newpage, upage, init, type, aux, file_backed_initializer);
 		spt_insert_page(spt, newpage);
+		return true;
 	}
 
 err:
@@ -77,16 +78,17 @@ err:
 struct page *
 spt_find_page(struct supplemental_page_table *spt, void *va)
 {
-	struct page *page = NULL;
+	void *aligned_va = pg_round_down(va);
+	struct page p;
+	p.va = aligned_va;	
 
 	/* TODO: Fill this function. */
-	struct hash_elem *temp = hash_find(&spt->page_hash, va);
-	if (temp == NULL)
+	struct hash_elem *temp = hash_find(&spt->page_hash, &p.elem);
+	if (temp == NULL){
 		return NULL;
+	}
 
-	page = hash_entry(temp, struct page, elem);
-
-	return page;
+	return hash_entry(temp, struct page, elem);
 }
 
 /* Insert PAGE into spt with validation. */
@@ -219,11 +221,11 @@ void vm_dealloc_page(struct page *page)
 }
 
 /* Claim the page that allocate on VA. */
+//stack growth에서 많이 사용할 것 
 bool vm_claim_page(void *va)
 {
-	struct page *page = NULL;
-	//`va`에 해당하는 page를 claim합니다. 먼저 page를 얻은 뒤, 
-	//그 page로 `vm_do_claim_page`를 호출해야 합니다.
+	struct page *page = malloc(sizeof(struct page));
+	page->va = va;
 
 	return vm_do_claim_page(page);
 }
@@ -247,7 +249,7 @@ vm_do_claim_page(struct page *page)
 }
 
 /* Initialize new supplemental page table */
-void supplemental_page_table_init(struct supplemental_page_table *spt)
+void supplemental_page_table_init (struct supplemental_page_table *spt)
 {
 	hash_init(spt, h_func, l_func, NULL);
 }
@@ -273,4 +275,10 @@ bool is_certified_stackgrowth() {
 	//stack pointer보다 8바이트 아래에서 page fault를 일으킬 수 있습니다.
 	//프로세서는 예외 때문에 user mode에서 kernel mode로 전환될 때에만 stack pointer를 저장합니다
 	return true;
+}
+
+void *pg_round_down(void *va)
+{
+	void *aligned = (uint64_t)va & !7;
+	return aligned;
 }
