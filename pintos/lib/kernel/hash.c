@@ -88,18 +88,20 @@ hash_destroy (struct hash *h, hash_action_func *destructor) {
 	free (h->buckets);
 }
 
-/* Inserts NEW into hash table H and returns a null pointer, if
-   no equal element is already in the table.
-   If an equal element is already in the table, returns it
-   without inserting NEW. */
+/* 해시 테이블 H에 NEW를 삽입한다.
+   같은 원소가 없으면 NEW를 넣고 NULL을 반환한다.
+   같은 원소가 이미 있으면 삽입하지 않고 기존 원소를 반환한다. */
 struct hash_elem *
 hash_insert (struct hash *h, struct hash_elem *new) {
+	/* NEW의 해시값으로 들어갈 버킷을 찾고, 중복 원소가 있는지 확인한다. */
 	struct list *bucket = find_bucket (h, new);
 	struct hash_elem *old = find_elem (h, bucket, new);
 
+	/* 중복이 없을 때만 실제로 버킷 리스트에 연결한다. */
 	if (old == NULL)
 		insert_elem (h, bucket, new);
 
+	/* 원소 수 변화에 맞춰 필요하면 버킷 수를 조정한다. */
 	rehash (h);
 
 	return old;
@@ -322,10 +324,9 @@ is_power_of_2 (size_t x) {
 #define BEST_ELEMS_PER_BUCKET 2 /* Ideal elems/bucket. */
 #define MAX_ELEMS_PER_BUCKET  4 /* Elems/bucket > 4: increase # of buckets. */
 
-/* Changes the number of buckets in hash table H to match the
-   ideal.  This function can fail because of an out-of-memory
-   condition, but that'll just make hash accesses less efficient;
-   we can still continue. */
+/* 해시 테이블 H의 버킷 개수를 현재 원소 수에 맞게 조정한다.
+   버킷 수가 바뀌면 모든 원소를 새 버킷 위치로 다시 배치한다.
+   메모리 할당에 실패해도 테이블은 계속 사용할 수 있고, 효율만 낮아진다. */
 static void
 rehash (struct hash *h) {
 	size_t old_bucket_cnt, new_bucket_cnt;
@@ -334,40 +335,36 @@ rehash (struct hash *h) {
 
 	ASSERT (h != NULL);
 
-	/* Save old bucket info for later use. */
+	/* 기존 버킷 배열은 원소를 옮긴 뒤 해제해야 하므로 따로 보관한다. */
 	old_buckets = h->buckets;
 	old_bucket_cnt = h->bucket_cnt;
 
-	/* Calculate the number of buckets to use now.
-	   We want one bucket for about every BEST_ELEMS_PER_BUCKET.
-	   We must have at least four buckets, and the number of
-	   buckets must be a power of 2. */
+	/* 원소 수 기준으로 적절한 새 버킷 개수를 계산한다.
+	   최소 4개를 유지하고, 인덱스 계산을 위해 2의 거듭제곱으로 맞춘다. */
 	new_bucket_cnt = h->elem_cnt / BEST_ELEMS_PER_BUCKET;
 	if (new_bucket_cnt < 4)
 		new_bucket_cnt = 4;
 	while (!is_power_of_2 (new_bucket_cnt))
 		new_bucket_cnt = turn_off_least_1bit (new_bucket_cnt);
 
-	/* Don't do anything if the bucket count wouldn't change. */
+	/* 버킷 개수가 그대로라면 재배치할 필요가 없다. */
 	if (new_bucket_cnt == old_bucket_cnt)
 		return;
 
-	/* Allocate new buckets and initialize them as empty. */
+	/* 새 버킷 배열을 할당하고 빈 리스트로 초기화한다. */
 	new_buckets = malloc (sizeof *new_buckets * new_bucket_cnt);
 	if (new_buckets == NULL) {
-		/* Allocation failed.  This means that use of the hash table will
-		   be less efficient.  However, it is still usable, so
-		   there's no reason for it to be an error. */
+		/* 할당 실패 시 기존 버킷을 그대로 사용한다. 기능은 유지되고 성능만 덜 좋아진다. */
 		return;
 	}
 	for (i = 0; i < new_bucket_cnt; i++)
 		list_init (&new_buckets[i]);
 
-	/* Install new bucket info. */
+	/* 이제부터 find_bucket()이 새 버킷 배열 기준으로 동작하도록 교체한다. */
 	h->buckets = new_buckets;
 	h->bucket_cnt = new_bucket_cnt;
 
-	/* Move each old element into the appropriate new bucket. */
+	/* 기존 모든 원소를 새 버킷 개수에 맞는 위치로 다시 연결한다. */
 	for (i = 0; i < old_bucket_cnt; i++) {
 		struct list *old_bucket;
 		struct list_elem *elem, *next;
@@ -386,9 +383,10 @@ rehash (struct hash *h) {
 	free (old_buckets);
 }
 
-/* Inserts E into BUCKET (in hash table H). */
+/* 해시 테이블 H의 BUCKET에 원소 E를 실제로 삽입한다. */
 static void
 insert_elem (struct hash *h, struct list *bucket, struct hash_elem *e) {
+	/* 전체 원소 수를 늘리고, 해당 버킷 리스트의 맨 앞에 연결한다. */
 	h->elem_cnt++;
 	list_push_front (bucket, &e->list_elem);
 }
