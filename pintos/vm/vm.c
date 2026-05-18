@@ -62,6 +62,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* TODO: Insert the page into the spt. */
 
 		struct page *newpage = malloc(sizeof(struct page));
+		if (newpage == NULL) 
+			goto err;
+		newpage->owner = thread_current();
+		
 		if (type == VM_ANON)
 			uninit_new(newpage, upage, init, type, aux, anon_initializer);
 		else if (type == VM_FILE)

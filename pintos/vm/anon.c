@@ -32,6 +32,8 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 
 	struct anon_page *anon_page = &page->anon;
 	//anon에 뭐가 추가로 들어가야 할지 생각을 해야 함
+
+	return true;
 }
 
 /* Swap in the page by read contents from the swap disk. */
