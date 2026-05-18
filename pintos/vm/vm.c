@@ -155,8 +155,9 @@ vm_get_frame(void)
 
 /* Growing the stack. */
 static void
-vm_stack_growth(void *addr UNUSED)
+vm_stack_growth(void *addr)
 {
+
 }
 
 /* Handle the fault on write_protected page */
@@ -221,7 +222,8 @@ void vm_dealloc_page(struct page *page)
 bool vm_claim_page(void *va)
 {
 	struct page *page = NULL;
-	/* TODO: Fill this function */
+	//`va`에 해당하는 page를 claim합니다. 먼저 page를 얻은 뒤, 
+	//그 page로 `vm_do_claim_page`를 호출해야 합니다.
 
 	return vm_do_claim_page(page);
 }
@@ -261,4 +263,14 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+}
+
+
+bool is_certified_stackgrowth() {
+
+	//사용자 프로그램이 stack pointer 아래의 스택에 쓰는 것은 버그입니다.
+	//x86-64 PUSH 명령은 stack pointer를 조정하기 전에 접근 권한을 확인하므로, 
+	//stack pointer보다 8바이트 아래에서 page fault를 일으킬 수 있습니다.
+	//프로세서는 예외 때문에 user mode에서 kernel mode로 전환될 때에만 stack pointer를 저장합니다
+	return true;
 }

@@ -894,9 +894,25 @@ install_page(void *upage, void *kpage, bool writable)
 static bool
 lazy_load_segment(struct page *page, void *aux)
 {
+	ASSERT(page->frame != NULL);
+	ASSERT(aux != NULL);
+
+	struct aux *a = aux;
+	file_seek(a->file, a->offset);
+	
+	if (file_read(a->file, page->frame->kva, a->page_read_bytes) 
+			!= (int)a->page_read_bytes)
+	{
+		return false;
+	}
+	memset(page->frame->kva + a->page_read_bytes, 0, a->page_zero_bytes);
+	//load Segment를 참조하여 page에 aux의 내용 = segment를 가져옴
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	/* Load this page. */
+		
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
