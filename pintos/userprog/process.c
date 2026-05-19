@@ -840,8 +840,9 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: VA is available when calling this function. */
 }
 
-/* VM용 세그먼트 적재 함수.
- * 페이지를 즉시 읽지 않고, lazy_load_segment()로 나중에 로드되도록 등록한다. */
+/* ELF 세그먼트를 사용자 가상 주소 공간에 등록한다.
+ * VM에서는 파일 내용을 즉시 메모리에 읽지 않고, 각 페이지를 uninit page로
+ * 만들어 첫 페이지 폴트 때 lazy_load_segment()가 실제 내용을 채우게 한다. */
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
@@ -849,33 +850,50 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
 
+    /* lazy_load_segment()가 나중에 파일에서 읽을 위치와 크기를 알 수 있도록
+     * 페이지별 로드 정보를 aux로 넘긴다. */
+	struct lazy_load_info {
+        struct file *file; // 어떤 파일?
+        off_t ofs; // 파일 어디서부터?
+        size_t page_read_bytes; // 몇 바이트 읽어?
+        size_t page_zero_bytes; // 나머지 몇 바이트 0으로 채워?
+    };
+
 	while (read_bytes > 0 || zero_bytes > 0) {
-		/* 현재 페이지에서 읽을 영역과 0으로 채울 영역 계산. */
+		/* 현재 페이지에서 파일로부터 읽을 바이트와 0으로 채울 바이트를 계산한다. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-		/* 페이지 폴트 시 로드에 필요한 정보를 aux에 담아야 한다. */
-		/* TODO: lazy_load_segment()에 전달할 정보를 aux에 설정한다. */
-        /* lazy_load_segment에 넘겨줄 정보 묶음 */
-        /* "파일 어디서부터 몇 바이트 읽어야 해" 라는 정보 */
-        struct load_info {
-            struct file *file;  // 어떤 파일?
-            off_t ofs;  // 파일 어디서부터?
-            size_t read_bytes;  // 몇 바이트 읽어?
-            size_t zero_bytes;  // 나머지 몇 바이트 0으로 채워?
+        struct lazy_load_info *info = malloc(sizeof(struct lazy_load_info));	
+        
+        if (info == NULL) {
+            goto err;
         }
-		void *aux = NULL;
-		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
-			return false;
 
-		/* 다음 페이지로 이동. */
-		read_bytes -= page_read_bytes;
-		zero_bytes -= page_zero_bytes;
-		upage += PGSIZE;
+        info->file = file;
+        info->ofs = ofs;
+        info->page_read_bytes = page_read_bytes;
+        info->page_zero_bytes = page_zero_bytes;
+
+        void *aux = info;
+
+		/* 사용자 가상 페이지를 SPT에 등록한다. 실제 프레임 할당과 파일 읽기는
+		 * 해당 주소에 처음 접근해 page fault가 발생했을 때 수행된다. */
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, aux)) {
+            free(info);
+            return false;
+        }
+			
+		/* 다음 페이지의 파일 오프셋, 남은 바이트 수, 사용자 주소로 이동한다. */
+		ofs += page_read_bytes;
+        read_bytes -= page_read_bytes;
+        zero_bytes -= page_zero_bytes;
+        upage += PGSIZE;
 	}
 	return true;
+
+err:
+    return false;
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
