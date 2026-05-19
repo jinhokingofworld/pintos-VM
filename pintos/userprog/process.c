@@ -953,12 +953,26 @@ setup_stack(struct intr_frame *if_)
 {
 	bool success = false;
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+	struct supplemental_page_table* spt = &thread_current()->spt;
 
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
+	ASSERT(pg_ofs(stack_bottom) == 0);
 
+	// 페이지 할당 및 uninit으로 초기화
+	if (!vm_alloc_page_with_initializer (VM_ANON | VM_MARKER_0, stack_bottom,
+			true, NULL, NULL)) {					
+		goto done;
+	}
+
+	// 프레임 할당, pml4등록 및 초기화
+	if (!vm_claim_page(stack_bottom)) {
+		goto done;
+	}
+
+	// rsp 세팅 의문인건 rsp를 stack_bottom으로 보내지 않아도 되는건가? 이건 뒤에서 하는건가?
+	if_->rsp = USER_STACK;
+
+	success = true;
+done:
 	return success;
 }
 #endif /* VM */
