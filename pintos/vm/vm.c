@@ -39,6 +39,8 @@ page_get_type(struct page *page)
 	}
 }
 
+struct list frame_table;
+
 /* Helpers */
 static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
@@ -74,12 +76,14 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		}
 
 		/* TODO: Insert the page into the spt. */
-		page->owner = thread_current();
+		
 		
 		if (VM_TYPE(type) == VM_ANON)
 			uninit_new(page, upage, init, type, aux, anon_initializer);
 		else if (VM_TYPE(type) == VM_FILE)
 			uninit_new(page, upage, init, type, aux, file_backed_initializer);
+		page->owner = thread_current();
+		page->writable = writable;
 
 		if (!spt_insert_page(spt, page)) {
 			free(page);
@@ -140,7 +144,6 @@ bool spt_insert_page(struct supplemental_page_table *spt,
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 {
 	vm_dealloc_page(page);
-	return true;
 }
 
 /* Get the struct frame, that will be evicted. */
@@ -175,8 +178,12 @@ vm_get_frame(void)
 	if (frame == NULL) return NULL;
 
 	// palloc으로 프레임을 가져오는 것을 시도
-	frame->kva = palloc_get_page(PAL_USER);
-	if (frame->kva == NULL) return NULL;
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO); // why????
+	if (frame->kva == NULL) 
+	{
+		free(frame);
+		return NULL;
+	}
 	frame->page = NULL;
 
 	// palloc이 실패했다 == 메모리가 꽉 찼다 == swap out 필요
@@ -201,6 +208,7 @@ vm_stack_growth(void *addr)
 static bool
 vm_handle_wp(struct page *page UNUSED)
 {
+	return false;
 }
 
 /* Return true on success */
@@ -236,8 +244,8 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		else // found_page == NULL
 		{
 			// stack growth 조건을 확인
-			if (!is_certified_stackgrowth())
-				return false;
+			// if (!is_certified_stackgrowth())
+			// 	return false;
 			// user인지 확인
 			if (user != true)
 				return false;
@@ -269,6 +277,7 @@ vm_do_claim_page(struct page *page)
 {
 	struct frame *frame = vm_get_frame();
 	struct thread *curr = thread_current();
+	if (frame == NULL) return false;
 
 	/* Set links */
 	frame->page = page;

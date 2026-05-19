@@ -348,6 +348,11 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup();
 
+#ifdef VM
+	if (!supplemental_page_table_init(&thread_current()->spt))
+		return -1;
+#endif
+
 	/* And then load the binary */
 	success = load(file_name, &_if);
 
@@ -889,6 +894,8 @@ lazy_load_segment(struct page *page, void *aux)
 	if (file_read(a->file, page->frame->kva, a->page_read_bytes) 
 			!= (int)a->page_read_bytes)
 	{
+		file_close(a->file);
+		free(a);
 		return false;
 	}
 	memset(page->frame->kva + a->page_read_bytes, 0, a->page_zero_bytes);
@@ -930,6 +937,10 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		if (temp.file == NULL) return false;	// 파일 열기 실패 처리
 
 		void *aux = malloc(sizeof(struct aux));
+		if (aux == NULL) {
+			file_close(file);
+			return false;
+		}
 		memcpy(aux, &temp, sizeof(struct aux));
 
 		/* 사용자 가상 페이지를 lazy loading 대상으로 등록. */
@@ -953,15 +964,18 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack(struct intr_frame *if_)
 {
-	bool success = false;
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
-	
+	if(!vm_alloc_page(VM_ANON, USER_STACK - PGSIZE, true)) 
+		return false;
+	if(!vm_claim_page(USER_STACK - PGSIZE))
+		return false;
+	if_->rsp = USER_STACK;
 
-	return success;
+	return true;
 }
 #endif /* VM */
