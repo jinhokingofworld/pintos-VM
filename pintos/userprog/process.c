@@ -902,6 +902,11 @@ done:
 	return success;
 }
 
+static bool
+zero_fill_page(struct page *page, void *aux) {
+	memset(paeg->frame->kva, 0, PGSIZE);
+}
+
 /* VM용 세그먼트 적재 함수.
  * 페이지를 즉시 읽지 않고, lazy_load_segment()로 나중에 로드되도록 등록한다. */
 static bool
@@ -959,7 +964,7 @@ setup_stack(struct intr_frame *if_)
 
 	// 페이지 할당 및 uninit으로 초기화
 	if (!vm_alloc_page_with_initializer (VM_ANON | VM_MARKER_0, stack_bottom,
-			true, NULL, NULL)) {					
+			true, zero_fill_page, NULL)) {					
 		goto done;
 	}
 

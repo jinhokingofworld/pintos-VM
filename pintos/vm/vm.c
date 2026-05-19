@@ -179,8 +179,12 @@ vm_evict_frame(void)
  * space.*/
 static struct frame *
 vm_get_frame(void)
-{ /* TODO: Fill this function. */
+{ 
 	struct frame *frame = malloc(sizeof(frame));
+
+	// 여기서 page type에 따라서 0으로 초기화할 수 있도록 만들어주고 싶어.
+	// 여기서는 ANON에다 VM_MARKER_0일 경우에는 그렇게 만들면 된다.
+
 
 	// palloc으로 프레임을 가져오는 것을 시도
 	frame->kva = palloc_get_page(PAL_USER);
@@ -264,9 +268,11 @@ void vm_dealloc_page(struct page *page)
 /* Claim the page that allocate on VA. */
 bool vm_claim_page(void *va)
 {
-	struct page *page = NULL;
-	/* TODO: Fill this function */
+	struct supplemental_page_table* spt = thread_current()->spt;
+	struct page *page = spt_find_page(spt, va);
 
+	ASSERT(page != NULL);
+	
 	return vm_do_claim_page(page);
 }
 

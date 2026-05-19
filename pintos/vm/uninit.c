@@ -51,9 +51,10 @@ uninit_initialize (struct page *page, void *kva) {
 	vm_initializer *init = uninit->init;
 	void *aux = uninit->aux;
 
+	ASSERT(init != NULL); // init(프레임 데이터 초기화 함수)는 보안상 이유로 반드시 존재해야한다.
+
 	/* TODO: You may need to fix this function. */
-	return uninit->page_initializer (page, uninit->type, kva) &&
-		(init ? init (page, aux) : true);
+	return uninit->page_initializer (page, uninit->type, kva) && init (page, aux);
 }
 
 /* Free the resources hold by uninit_page. Although most of pages are transmuted
