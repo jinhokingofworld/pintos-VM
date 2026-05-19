@@ -47,39 +47,53 @@ static uint64_t page_hash (const struct hash_elem *e, void *aux UNUSED);
 static bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 static void page_destroy (struct hash_elem *e, void *aux UNUSED);
 
-/* Create the pending page object with initializer. If you want to create a
- * page, do not create it directly and make it through this function or
- * `vm_alloc_page`. */
-bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writable,
-									vm_initializer *init, void *aux)
-{
-
-	ASSERT(VM_TYPE(type) != VM_UNINIT)
-
-	// upage, init, aux가 null일때는 검사하지 않는건가? 어떻게 믿고 사용하는거지?
+/* TYPE에 맞는 사용자 가상 페이지를 만들고 현재 스레드의 SPT에 등록한다.
+ * 실제 물리 프레임 할당은 지금 하지 않고, 첫 페이지 폴트 때 INIT/AUX로 초기화되도록
+ * uninit page 상태로 준비한다. */
+bool
+vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
+		vm_initializer *init, void *aux) {
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
-	struct page *page;
 
-	/* Check wheter the upage is already occupied or not. */
-	// 현재는 spt를 채우는 과정. spt에 해당 페이지가 없어야지 새로 생성가능
-	if (spt_find_page(spt, upage) == NULL)
-	{
-		/* TODO: Create the page, fetch the initialier according to the VM type,
-		 * TODO: and then create "uninit" page struct by calling uninit_new. You
-		 * TODO: should modify the field after calling the uninit_new. */
-		if (page = malloc(sizeof(*page)) == NULL) {
-			goto err;
-		}
+    if (pg_round_down(upage) != upage) {
+        goto err;
+    }
 
-		uninit_new(page, upage, init, type, aux, NULL); // type으로 어떻게 자동으로 초기화함수를 지정할지 모르겠음.
+	/* 같은 가상 주소의 페이지가 이미 SPT에 있으면 중복 할당이므로 실패한다. */
+	if (spt_find_page (spt, upage) != NULL) {
+        return false;
+    }
+	
+    /* SPT에 저장할 page 구조체를 동적으로 할당한다. */
+    struct page *page = malloc(sizeof(struct page));
 
-		/* TODO: Insert the page into the spt. */
-		if (!spt_insert_page(spt, page)) {
-			goto err;
-		}
-	}
-	return true;
+    if (page == NULL) {
+        goto err;
+    }
+
+    /* 페이지 종류에 따라 첫 폴트 시 호출할 실제 initializer를 연결한다. */
+    switch(VM_TYPE(type)) {
+        case VM_ANON: 
+            uninit_new(page, upage, init, type, aux, anon_initializer);
+            break;
+        case VM_FILE:
+            uninit_new(page, upage, init, type, aux, file_backed_initializer);
+            break;
+        default:
+            free(page);
+            goto err;
+    }
+    /* uninit_new()가 page 전체를 초기화한 뒤, 추가 메타데이터를 채운다. */
+    page->writable = writable;
+
+    /* 준비된 page를 SPT에 등록하면 이후 페이지 폴트에서 찾아 쓸 수 있다. */
+    if (spt_insert_page(spt, page)) {
+        return true;
+    } else {
+        free(page);
+        return false;
+    }
 err:
 	return false;
 }
