@@ -279,8 +279,14 @@ void vm_dealloc_page(struct page *page)
 /* Claim the page that allocate on VA. */
 bool vm_claim_page(void *va)
 {
-	struct page *page = NULL;
 	/* TODO: Fill this function */
+	struct supplemental_page_table *spt = &thread_current()->spt;
+	struct page *page = spt_find_page(spt, va);
+
+	if(page == NULL)
+	{
+		return false;
+	}
 
 	return vm_do_claim_page(page);
 }
