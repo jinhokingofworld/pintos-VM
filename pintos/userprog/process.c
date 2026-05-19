@@ -937,7 +937,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 			return false;
 		}
 
-		load_info->file = file;
+		load_info->file = file_reopen(file);
 		load_info->offset = ofs;
 		load_info->page_read_bytes = page_read_bytes;
 		load_info->page_zero_bytes = page_zero_bytes;
