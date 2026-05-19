@@ -201,7 +201,7 @@ vm_get_frame(void)
 static void
 vm_stack_growth(void *addr)
 {
-
+	//여기를 채워
 }
 
 /* Handle the fault on write_protected page */
@@ -344,11 +344,21 @@ page_destroy (struct hash_elem *e, void *aux UNUSED) {
 }
 
 
-bool is_certified_stackgrowth() {
+bool is_certified_stackgrowth(struct intr_frame *f, void *addr,
+						 bool user, bool write, bool not_present) {
+	uintptr_t stackpointer = f->rsp;
+	
+	//접근하려는게 유저 스택 주소인가
+	if (!is_user_vaddr(addr))
+		return false;
 
-	//사용자 프로그램이 stack pointer 아래의 스택에 쓰는 것은 버그입니다.
-	//x86-64 PUSH 명령은 stack pointer를 조정하기 전에 접근 권한을 확인하므로, 
-	//stack pointer보다 8바이트 아래에서 page fault를 일으킬 수 있습니다.
-	//프로세서는 예외 때문에 user mode에서 kernel mode로 전환될 때에만 stack pointer를 저장합니다
+	//접근하는 주소가 rsp-8보다 작으면 안됨
+	if ((uintptr_t)addr < f->rsp - 8)
+		return false;
+
+	//스택의 사이즈보다 크면 안됨
+	if ((uintptr_t)addr > USER_STACK)
+		return false;
+	
 	return true;
 }
