@@ -23,7 +23,6 @@
 
 #ifdef VM
 #include "vm/vm.h"
-#include "anon.h"
 #endif
 
 static void process_cleanup(void);
@@ -987,6 +986,7 @@ setup_stack(struct intr_frame *if_)
 {
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 	struct supplemental_page_table* spt = &thread_current()->spt;
+	bool success = false;
 
 	ASSERT(pg_ofs(stack_bottom) == 0);
 
