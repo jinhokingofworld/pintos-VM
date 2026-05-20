@@ -20,8 +20,6 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "list.h"
-#include "vm/vm.h"
-// #define VM ;
 
 #ifdef VM
 #include "vm/vm.h"
@@ -350,12 +348,10 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup();
 
-	/* SPT kill 이후 load전에 해시테이블 초기화 작업 */
-	#ifdef VM
-		if (!supplemental_page_table_init (&thread_current ()->spt))
-			success = false;
-		else
-	#endif
+#ifdef VM
+	if (!supplemental_page_table_init(&thread_current()->spt))
+		return -1;
+#endif
 
 	/* And then load the binary */
 	success = load(file_name, &_if);
@@ -908,6 +904,8 @@ lazy_load_segment(struct page *page, void *aux)
 		success = true;
 	}
 
+	//file_reopen일 때, 한 번만 닫아줘도 되나?
+	//file_close(load_info->file);
 	free (load_info);
 	return success;
 }
@@ -947,6 +945,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		}
 
 		load_info->file = file_reopen(file);
+		if(load_info->file == NULL)
+		{
+			//file_close(file);
+			return false;
+		}
 		load_info->offset = ofs;
 		load_info->page_read_bytes = page_read_bytes;
 		load_info->page_zero_bytes = page_zero_bytes;
@@ -955,6 +958,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		if(!vm_alloc_page_with_initializer(VM_ANON, upage,
 					writable, lazy_load_segment, load_info))
 		{
+			//file_close(temp.file);
 			free(load_info);
 			return false;
 		}
@@ -975,7 +979,6 @@ err:
 static bool
 setup_stack(struct intr_frame *if_)
 {
-	bool success = false;
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
@@ -991,6 +994,6 @@ setup_stack(struct intr_frame *if_)
 		}
 	}
 
-	return success;
+	return true;
 }
 #endif /* VM */

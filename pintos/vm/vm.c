@@ -40,6 +40,8 @@ page_get_type(struct page *page)
 	}
 }
 
+struct list frame_table;
+
 /* Helpers */
 static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
@@ -47,7 +49,8 @@ static struct frame *vm_evict_frame (void);
 static uint64_t page_hash (const struct hash_elem *e, void *aux UNUSED);
 static bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
 static void page_destroy (struct hash_elem *e, void *aux UNUSED);
-static bool is_certified_stackgrowth (void); // 정의 안되어있어서 우선 stub 처리 - 추후 구현 필요
+bool is_certified_stackgrowth(struct intr_frame *f, void *addr,
+						 bool user, bool write, bool not_present);
 
 /* TYPE에 맞는 사용자 가상 페이지를 만들고 현재 스레드의 SPT에 등록한다.
  * 실제 물리 프레임 할당은 지금 하지 않고, 첫 페이지 폴트 때 INIT/AUX로 초기화되도록
@@ -153,7 +156,6 @@ bool spt_insert_page(struct supplemental_page_table *spt,
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 {
 	vm_dealloc_page(page);
-	return true;
 }
 
 /* Get the struct frame, that will be evicted. */
@@ -184,10 +186,16 @@ vm_evict_frame(void)
 static struct frame *
 vm_get_frame(void)
 { /* TODO: Fill this function. */
-	struct frame *frame = malloc(sizeof(frame));
+	struct frame *frame = malloc(sizeof(*frame));
+	if (frame == NULL) return NULL;
 
 	// palloc으로 프레임을 가져오는 것을 시도
-	frame->kva = palloc_get_page(PAL_USER);
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO); // why????
+	if (frame->kva == NULL) 
+	{
+		free(frame);
+		return NULL;
+	}
 	frame->page = NULL;
 
 	// palloc이 실패했다 == 메모리가 꽉 찼다 == swap out 필요
@@ -203,21 +211,18 @@ vm_get_frame(void)
 
 /* Growing the stack. */
 static void
-vm_stack_growth(void *addr UNUSED)
+vm_stack_growth(void *addr)
 {
-}
-
-static bool
-is_certified_stackgrowth(void)
-{
-	/* 정의 안되어있어서 우선 stub 처리 - 추후 구현 필요 */
-	return true;
+	//addr이 더이상 fault 주소가 아니도록 바꾸어야 함
+	//anon 페이지를 할당해서 스택의 크기를 늘림.
+	//할당을 처리할 때 addr를 PGSIZE로 내림 정렬해야 함
 }
 
 /* Handle the fault on write_protected page */
 static bool
 vm_handle_wp(struct page *page UNUSED)
 {
+	return false;
 }
 
 /* Return true on success */
@@ -243,7 +248,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		if (found_page != NULL)
 		{
 			// page 구조체의 권한을 확인 -> 에러
-			if (found_page->writable != write)
+			if (write && !found_page->writable)
 				return false;
 			// spt의 page 내용대로 Frame 요청
 			return vm_do_claim_page(found_page);
@@ -253,7 +258,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		else // found_page == NULL
 		{
 			// stack growth 조건을 확인
-			if (!is_certified_stackgrowth())
+			if (!is_certified_stackgrowth(f, addr, user, write, not_present))
 				return false;
 			// user인지 확인
 			if (user != true)
@@ -273,6 +278,7 @@ void vm_dealloc_page(struct page *page)
 }
 
 /* Claim the page that allocate on VA. */
+//stack growth에서 많이 사용할 것 
 bool vm_claim_page(void *va)
 {
 	/* TODO: Fill this function */
@@ -293,15 +299,24 @@ vm_do_claim_page(struct page *page)
 {
 	struct frame *frame = vm_get_frame();
 	struct thread *curr = thread_current();
+	if (frame == NULL) return false;
 
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
+	list_push_front(&frame_table, &page->frame->elem); //프레임 테이블에 넣음
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	pml4_set_page(curr->pml4, page->va, frame->kva, page->writable);
+	if(!pml4_set_page(curr->pml4, page->va, frame->kva, page->writable))
+	{
+		//이거 공부하기
+		page->frame = NULL;
+		frame->page = NULL;
+		palloc_free_page(frame->kva);
+		free(frame);
+		return false;
+	}
 
-	// 매크로 함수였어
 	return swap_in(page, frame->kva);
 }
 
@@ -348,4 +363,23 @@ page_destroy (struct hash_elem *e, void *aux UNUSED) {
 	struct page *page = hash_entry (e, struct page, hash_elem);
 
 	vm_dealloc_page (page);
+}
+
+
+bool is_certified_stackgrowth(struct intr_frame *f, void *addr,
+						 bool user, bool write, bool not_present) {
+	
+	//접근하려는게 유저 스택 주소인가
+	if (!is_user_vaddr(addr))
+		return false;
+
+	//접근하는 주소가 rsp-8보다 작으면 안됨
+	if ((uintptr_t)addr < f->rsp - 8)
+		return false;
+
+	//스택의 사이즈보다 크면 안됨
+	if ((uintptr_t)addr > USER_STACK)
+		return false;
+	
+	return true;
 }
