@@ -201,7 +201,9 @@ vm_get_frame(void)
 static void
 vm_stack_growth(void *addr)
 {
-	//여기를 채워
+	//addr이 더이상 fault 주소가 아니도록 바꾸어야 함
+	//anon 페이지를 할당해서 스택의 크기를 늘림.
+	//할당을 처리할 때 addr를 PGSIZE로 내림 정렬해야 함
 }
 
 /* Handle the fault on write_protected page */
@@ -244,8 +246,8 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		else // found_page == NULL
 		{
 			// stack growth 조건을 확인
-			// if (!is_certified_stackgrowth())
-			// 	return false;
+			if (!is_certified_stackgrowth(f, addr, user, write, not_present))
+				return false;
 			// user인지 확인
 			if (user != true)
 				return false;
@@ -346,7 +348,6 @@ page_destroy (struct hash_elem *e, void *aux UNUSED) {
 
 bool is_certified_stackgrowth(struct intr_frame *f, void *addr,
 						 bool user, bool write, bool not_present) {
-	uintptr_t stackpointer = f->rsp;
 	
 	//접근하려는게 유저 스택 주소인가
 	if (!is_user_vaddr(addr))
