@@ -5,6 +5,9 @@
 #include "threads/palloc.h"
 #include <hash.h>
 
+// 함수 타입을 간결히 나타내기 위해 선언
+typedef bool page_initializer(struct page*, enum vm_type, void *);
+
 enum vm_type
 {
 	/* page not initialized */
@@ -20,7 +23,7 @@ enum vm_type
 
 	/* Auxillary bit flag marker for store information. You can add more
 	 * markers, until the value is fit in the int. */
-	VM_MARKER_0 = (1 << 3),
+	VM_MARKER_0 = (1 << 3), /* 스택용이라는 표시 */ 
 	VM_MARKER_1 = (1 << 4),
 
 	/* DO NOT EXCEED THIS VALUE. */
@@ -43,15 +46,14 @@ struct thread;
  * uninit, anon, file 등 페이지 종류별 정보를 함께 관리한다.
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
 struct page {
-	const struct page_operations *operations; /* 페이지 종류별 동작 함수. */
-	void *va;              /* 사용자 가상 주소. */
-	struct frame *frame;   /* 연결된 물리 프레임. */
+	const struct page_operations *operations;  /* 페이지 종류별 동작 함수. */
+	void *va;              					   /* 사용자 가상 주소. */
+	struct frame *frame;   					   /* 연결된 물리 프레임. */
 
 	/* TODO: SPT 관리와 페이지 권한에 필요한 필드. */
-    struct thread *owner; /* 이 페이지가 속한 주소 공간의 스레드. */
-    struct hash_elem hash_elem; /* SPT 해시 연결 고리. */
-    bool writable;              /* 쓰기 가능 여부. */
-	bool accessed;
+    struct thread *owner; 					   /* 이 페이지가 속한 주소 공간의 스레드. */
+    struct hash_elem hash_elem; 			   /* SPT 해시 연결 고리. */
+    bool writable;                             /* 쓰기 가능 여부. */
 	
 	/* 페이지 타입별 세부 정보. */
 	union {

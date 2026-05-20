@@ -23,6 +23,7 @@
 
 #ifdef VM
 #include "vm/vm.h"
+#include "anon.h"
 #endif
 
 static void process_cleanup(void);
@@ -910,6 +911,11 @@ lazy_load_segment(struct page *page, void *aux)
 	return success;
 }
 
+static bool
+zero_fill_page(struct page *page, void *aux) {
+	memset(page->frame->kva, 0, PGSIZE);
+}
+
 /* ELF 세그먼트를 사용자 가상 주소 공간에 등록한다.
  * VM에서는 파일 내용을 즉시 메모리에 읽지 않고, 각 페이지를 uninit page로
  * 만들어 첫 페이지 폴트 때 lazy_load_segment()가 실제 내용을 채우게 한다. */
@@ -980,20 +986,26 @@ static bool
 setup_stack(struct intr_frame *if_)
 {
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+	struct supplemental_page_table* spt = &thread_current()->spt;
 
-	/* TODO: Map the stack on stack_bottom and claim the page immediately.
-	 * TODO: If success, set the rsp accordingly.
-	 * TODO: You should mark the page is stack. */
-	/* TODO: Your code goes here */
-	if (vm_alloc_page(VM_ANON, stack_bottom, true))
-	{
-		success = vm_claim_page(stack_bottom);
-		if (success)
-		{
-			if_->rsp = USER_STACK;
-		}
+	ASSERT(pg_ofs(stack_bottom) == 0);
+
+	// 페이지 할당 및 uninit으로 초기화
+	if (!vm_alloc_page_with_initializer (VM_ANON | VM_MARKER_0, stack_bottom,
+			true, zero_fill_page, NULL)) {					
+		goto done;
 	}
 
-	return true;
+	// 프레임 할당, pml4등록 및 초기화
+	if (!vm_claim_page(stack_bottom)) {
+		goto done;
+	}
+
+	// rsp 세팅 의문인건 rsp를 stack_bottom으로 보내지 않아도 되는건가? 이건 뒤에서 하는건가?
+	if_->rsp = USER_STACK;
+
+	success = true;
+done:
+	return success;
 }
 #endif /* VM */

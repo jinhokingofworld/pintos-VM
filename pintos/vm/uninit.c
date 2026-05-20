@@ -51,9 +51,10 @@ uninit_initialize (struct page *page, void *kva) {
 	vm_initializer *init = uninit->init;
 	void *aux = uninit->aux;
 
+	ASSERT(init != NULL); // init(프레임 데이터 초기화 함수)는 보안상 이유로 반드시 존재해야한다.
+
 	/* TODO: You may need to fix this function. */
-	return uninit->page_initializer (page, uninit->type, kva) &&
-		(init ? init (page, aux) : true);
+	return uninit->page_initializer (page, uninit->type, kva) && init (page, aux);
 }
 
 /* Free the resources hold by uninit_page. Although most of pages are transmuted
@@ -61,8 +62,13 @@ uninit_initialize (struct page *page, void *kva) {
  * exit, which are never referenced during the execution.
  * PAGE will be freed by the caller. */
 static void
-uninit_destroy (struct page *page) {
-	struct uninit_page *uninit UNUSED = &page->uninit;
-	/* TODO: Fill this function.
-	 * TODO: If you don't have anything to do, just return. */
+uninit_destroy (struct page *page) {	
+	
+	// page는 NULL일 수 없지만, 확실히 하기 위해 추가
+	ASSERT (page != NULL);
+	
+	struct uninit_page *uninit = &page->uninit;
+
+	/* page fault가 나지 않았다면, 여기서 정리 */
+	free(uninit->aux);
 }

@@ -63,6 +63,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
     struct page *page = malloc(sizeof(struct page));
     bool (*initializer) (struct page *, enum vm_type, void *) = NULL;
 
+	ASSERT(VM_TYPE(type) != VM_UNINIT);
+
     if (pg_round_down(upage) != upage) {
         goto err;
     }
@@ -189,6 +191,10 @@ vm_get_frame(void)
 	struct frame *frame = malloc(sizeof(*frame));
 	if (frame == NULL) return NULL;
 
+	// 여기서 page type에 따라서 0으로 초기화할 수 있도록 만들어주고 싶어.
+	// 여기서는 ANON에다 VM_MARKER_0일 경우에는 그렇게 만들면 된다.
+
+
 	// palloc으로 프레임을 가져오는 것을 시도
 	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO); // why????
 	if (frame->kva == NULL) 
@@ -244,7 +250,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 		// spt에서 찾아보기
 		struct page *found_page = spt_find_page(spt, addr);
 
-		// SPT에서 페이지 정보를 찾을 수 있는 경우
+		// spt에 찾는 페이지가 있다면,
 		if (found_page != NULL)
 		{
 			// page 구조체의 권한을 확인 -> 에러
@@ -254,8 +260,8 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 			return vm_do_claim_page(found_page);
 		}
 
-		// SPT에서 페이지 정보를 찾을 수 없는 경우
-		else // found_page == NULL
+		// spt에 찾는 페이지가 없다면
+		else
 		{
 			// stack growth 조건을 확인
 			if (!is_certified_stackgrowth(f, addr, user, write, not_present))
@@ -281,14 +287,10 @@ void vm_dealloc_page(struct page *page)
 //stack growth에서 많이 사용할 것 
 bool vm_claim_page(void *va)
 {
-	/* TODO: Fill this function */
 	struct supplemental_page_table *spt = &thread_current()->spt;
 	struct page *page = spt_find_page(spt, va);
 
-	if(page == NULL)
-	{
-		return false;
-	}
+	ASSERT(page != NULL);
 
 	return vm_do_claim_page(page);
 }
